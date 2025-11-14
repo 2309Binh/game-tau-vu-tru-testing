@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "gxjVr15oqJg=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\Admin\\game-tau-vu-tru-testing\\Backend\\Backend.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\Admin\\.nuget\\packages\\microsoft.aspnetcore.openapi\\9.0.9\\microsoft.aspnetcore.openapi.9.0.9.nupkg.sha512",
+    "C:\\Users\\Admin\\.nuget\\packages\\microsoft.openapi\\1.6.17\\microsoft.openapi.1.6.17.nupkg.sha512"
+  ],
+  "logs": []
+}
