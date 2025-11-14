@@ -1,0 +1,4 @@
+/* migrated styles from core/app/app.css */
+:host { display: block; }
+main { padding: 1rem; }
+button { background: #e04cff; color: #fff; border: none; padding: 8px 12px; border-radius: 6px; }
