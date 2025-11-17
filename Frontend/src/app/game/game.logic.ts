@@ -311,6 +311,7 @@ function render() {
 function drawMachine(x: number, y: number) {
   ctx.save();
   ctx.translate(x, y);
+  ctx.scale(2, 2);
 
   ctx.fillStyle = '#222';
   ctx.fillRect(-48, -12, 96, 24);
