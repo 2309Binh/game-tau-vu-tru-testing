@@ -13,7 +13,7 @@ export function initGame(canvas: HTMLCanvasElement, els: {
   let bullets: any[] = [];
   let meteors: any[] = [];
   let powerups: any[] = [];
-  let score = 0, lives = 3, level = 1, spawnWaveCount = 0, lastWaveAt = 0, fireCooldown = 0;
+  let score = 0, lives = 100, level = 1, spawnWaveCount = 0, lastWaveAt = 0, fireCooldown = 0;
 
   const input: any = { left:false, right:false, up:false, down:false, shoot:false };
 
@@ -180,8 +180,9 @@ function applyMachineDamage(n: number) {
     m.x += Math.sin((m.seed || 0 + Date.now() / 1000) * 2) * 0.5;
 
     // Meteor hits the machine
-    if (m.y > H - 40 && Math.abs(m.x - W / 2) < 60) {
-      const dmg = Math.ceil(m.strength * 0.05);
+    // Tighten collision window to reduce accidental hits and lower damage
+    if (m.y > H - 30 && Math.abs(m.x - W / 2) < 40) {
+      const dmg = Math.max(1, Math.ceil(m.strength * 0.03));
       applyMachineDamage(dmg);
       meteors.splice(i, 1);
       continue;
@@ -237,10 +238,14 @@ function applyMachineDamage(n: number) {
     }
   }
 
-  /* -------------------- RANDOM DAMAGE EVENT -------------------- */
-  if (Math.random() < 0.02 + level * 0.002) {
-    if (Math.random() < 0.18) applyPlayerDamage(1);
+  /* -------------------- RANDOM DAMAGE EVENT (disabled) -------------------- */
+  // Random damage disabled — prevents unexpected life loss during playtesting.
+  // If you want to re-enable later, restore the original block below.
+  /*
+  if (Math.random() < 0.005 + level * 0.001) {
+    if (Math.random() < 0.08) applyPlayerDamage(1);
   }
+  */
 
   /* -------------------- UPDATE HUD -------------------- */
   if (els.hudScore) els.hudScore.textContent = String(score);

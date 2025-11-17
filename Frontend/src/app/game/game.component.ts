@@ -13,7 +13,7 @@ import { initGame } from './game.logic';
 export class GameComponent implements AfterViewInit, OnDestroy {
   @ViewChild('canvas', { static: true }) canvasRef!: ElementRef<HTMLCanvasElement>;
 
-  score = 0; lives = 3; level = 1;
+  score = 0; lives = 100; level = 1;
 
   private gameInstance: any = null;
   private _keyDownHandler: ((e: KeyboardEvent)=>void) | null = null;
@@ -32,20 +32,29 @@ export class GameComponent implements AfterViewInit, OnDestroy {
       }
     }catch(e){ console.warn('Error sizing canvas', e); }
     // Ensure correct initial UI state: show start screen, hide help/game/gameover
+    // Guard DOM and storage access so SSR doesn't crash (document/window not defined on server)
     try{
-      const start = document.getElementById('start-screen');
-      const help = document.getElementById('help-screen');
-      const game = document.getElementById('game-screen');
-      const over = document.getElementById('gameover-screen');
-      if(start) { start.classList.remove('hidden'); }
-      if(help) { help.classList.add('hidden'); }
-      if(game) { game.classList.add('hidden'); }
-      if(over) { over.classList.add('hidden'); }
-      // populate highscores if present
-      const allKey = 'smart_game_alltime';
-      const dailyKey = 'smart_game_daily_' + (new Date()).toISOString().slice(0,10);
-      const at = document.getElementById('alltime-high'); if(at) at.textContent = String(localStorage.getItem(allKey) || '0');
-      const dt = document.getElementById('daily-high'); if(dt) dt.textContent = String(localStorage.getItem(dailyKey) || '0');
+      if(typeof document !== 'undefined'){
+        const start = document.getElementById('start-screen');
+        const help = document.getElementById('help-screen');
+        const game = document.getElementById('game-screen');
+        const over = document.getElementById('gameover-screen');
+        if(start) { start.classList.remove('hidden'); }
+        if(help) { help.classList.add('hidden'); }
+        if(game) { game.classList.add('hidden'); }
+        if(over) { over.classList.add('hidden'); }
+        // populate highscores if present and localStorage available
+        try{
+          if(typeof window !== 'undefined' && 'localStorage' in window){
+            const allKey = 'smart_game_alltime';
+            const dailyKey = 'smart_game_daily_' + (new Date()).toISOString().slice(0,10);
+            const at = document.getElementById('alltime-high'); 
+            if(at) at.textContent = String(window.localStorage.getItem(allKey) || '0');
+            const dt = document.getElementById('daily-high'); 
+            if(dt) dt.textContent = String(window.localStorage.getItem(dailyKey) || '0');
+          }
+        }catch(err){ console.warn('Error reading localStorage', err); }
+      }
     }catch(e){ console.warn('Error initializing UI state', e); }
   }
 
@@ -53,22 +62,35 @@ export class GameComponent implements AfterViewInit, OnDestroy {
     console.log('[GameComponent] start() called');
     const startScreen = document.getElementById('start-screen');
     const gameScreen = document.getElementById('game-screen');
+    // hide other screens and show game screen
+    const gameoverScreen = (typeof document !== 'undefined') ? document.getElementById('gameover-screen') : null;
     if(startScreen) startScreen.classList.add('hidden');
+    if(gameoverScreen) gameoverScreen.classList.add('hidden');
     if(gameScreen) gameScreen.classList.remove('hidden');
 
-    if(!this.gameInstance){
-      const canvas = this.canvasRef.nativeElement;
-      console.log('[GameComponent] creating initGame with canvas', canvas);
-      this.gameInstance = initGame(canvas, {
-        hudScore: document.querySelector('#hud-score'),
-        hudLives: document.querySelector('#hud-lives'),
-        hudLevel: document.querySelector('#hud-level'),
-        onGameOver: (score: number) => this.onGameOver(score)
-      });
-      // attach keyboard handlers
-      this.attachKeyboardControls();
-      console.log('[GameComponent] gameInstance created', this.gameInstance);
-    }
+    // ensure any previous instance is cleaned up so we start fresh
+    try{
+      if(this.gameInstance && this.gameInstance.destroy){
+        this.gameInstance.destroy();
+        this.detachKeyboardControls();
+      }
+    }catch(e){ console.warn('Error cleaning previous game instance', e); }
+    this.gameInstance = null;
+
+    // reset component HUD state
+    this.score = 0; this.lives = 3; this.level = 1;
+
+    const canvas = this.canvasRef.nativeElement;
+    console.log('[GameComponent] creating initGame with canvas', canvas);
+    this.gameInstance = initGame(canvas, {
+      hudScore: (typeof document !== 'undefined') ? document.querySelector('#hud-score') : null,
+      hudLives: (typeof document !== 'undefined') ? document.querySelector('#hud-lives') : null,
+      hudLevel: (typeof document !== 'undefined') ? document.querySelector('#hud-level') : null,
+      onGameOver: (score: number) => this.onGameOverClean(score)
+    });
+    // attach keyboard handlers
+    this.attachKeyboardControls();
+    console.log('[GameComponent] gameInstance created', this.gameInstance);
   }
 
   pause(){
@@ -89,6 +111,7 @@ export class GameComponent implements AfterViewInit, OnDestroy {
   }
 
   private attachKeyboardControls(){
+    if(typeof window === 'undefined') return;
     if(this._keyDownHandler) return;
     this._keyDownHandler = (e: KeyboardEvent) => {
       if(!this.gameInstance) return;
@@ -119,6 +142,7 @@ export class GameComponent implements AfterViewInit, OnDestroy {
   }
 
   private detachKeyboardControls(){
+    if(typeof window === 'undefined') return;
     if(this._keyDownHandler) window.removeEventListener('keydown', this._keyDownHandler);
     if(this._keyUpHandler) window.removeEventListener('keyup', this._keyUpHandler);
     this._keyDownHandler = null;
@@ -138,6 +162,26 @@ export class GameComponent implements AfterViewInit, OnDestroy {
   }
 
   onGameOver(sc:number){ this.score = sc; const final = document.getElementById('final-score'); if(final) final.textContent = String(sc); const gs = document.getElementById('game-screen'); const go = document.getElementById('gameover-screen'); if(gs) gs.classList.add('hidden'); if(go) go.classList.remove('hidden'); }
+  
+  // Ensure the current game instance is cleaned up so Retry can start a fresh game
+  onGameOverClean(sc:number){
+    // destroy running instance if any
+    try{
+      if(this.gameInstance && this.gameInstance.destroy){
+        this.gameInstance.destroy();
+      }
+    }catch(e){ console.warn('Error destroying game instance on game over', e); }
+    this.gameInstance = null;
+    this.detachKeyboardControls();
+    // show gameover UI
+    this.score = sc;
+    const final = (typeof document !== 'undefined') ? document.getElementById('final-score') : null;
+    if(final) final.textContent = String(sc);
+    const gs = (typeof document !== 'undefined') ? document.getElementById('game-screen') : null;
+    const go = (typeof document !== 'undefined') ? document.getElementById('gameover-screen') : null;
+    if(gs) gs.classList.add('hidden');
+    if(go) go.classList.remove('hidden');
+  }
 
   ngOnDestroy(): void {
     if(this.gameInstance && this.gameInstance.destroy) this.gameInstance.destroy();
