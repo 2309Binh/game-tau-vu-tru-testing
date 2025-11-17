@@ -20,9 +20,10 @@ export function initGame(canvas: HTMLCanvasElement, els: {
   const imagesToLoad = {
     ship: '/assets/picture/playership.png',
     meteor: '/assets/picture/meteor.png',
+    maschine: '/assets/picture/maschine.png',
   };
 
-  const images: { ship: HTMLImageElement | null; meteor: HTMLImageElement | null } = { ship: null, meteor: null };
+  const images: { ship: HTMLImageElement | null; meteor: HTMLImageElement | null; maschine: HTMLImageElement | null } = { ship: null, meteor: null, maschine  : null };
 
   function loadImage(src: string): Promise<HTMLImageElement>{
     return new Promise((resolve, reject)=>{
@@ -36,10 +37,16 @@ export function initGame(canvas: HTMLCanvasElement, els: {
   async function preloadImages(){
     const entries = Object.entries(imagesToLoad);
     for(const [key, url] of entries){
-      try{ const img = await loadImage(url); if(key === 'ship') images.ship = img; else if(key === 'meteor') images.meteor = img; }
-      catch(e){ console.warn('Failed to load image', url, e); 
-        if(key === 'ship') images.ship = null; 
-        else if(key === 'meteor') images.meteor = null; 
+      try{
+        const img = await loadImage(url);
+        if (key === 'ship') images.ship = img;
+        else if (key === 'meteor') images.meteor = img;
+        else if (key === 'maschine' || key === 'machine') images.maschine = img;
+      } catch(e){
+        console.warn('Failed to load image', url, e);
+        if (key === 'ship') images.ship = null;
+        else if (key === 'meteor') images.meteor = null;
+        else if (key === 'maschine' || key === 'machine') images.maschine = null;
       }
     }
   }
@@ -308,11 +315,25 @@ function render() {
   }
 }
 
+/* ---------------------------------------------------- */
+/* DRAW PLAYER                                          */
+/* ---------------------------------------------------- */
 function drawMachine(x: number, y: number) {
   ctx.save();
   ctx.translate(x, y);
-  ctx.scale(2, 2);
+  ctx.scale(3, 3);
 
+  const img = images.maschine;
+  if (img) {
+    const drawW = 96;
+    const drawH = 48;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+    ctx.restore();
+    return;
+  }
+
+  // Vector fallback if image isn't available
   ctx.fillStyle = '#222';
   ctx.fillRect(-48, -12, 96, 24);
 
