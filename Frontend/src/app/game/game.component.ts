@@ -18,6 +18,8 @@ export class GameComponent implements AfterViewInit, OnDestroy {
   private gameInstance: any = null;
   private _keyDownHandler: ((e: KeyboardEvent)=>void) | null = null;
   private _keyUpHandler: ((e: KeyboardEvent)=>void) | null = null;
+  private bgm: HTMLAudioElement | null = null;
+  private shotSfx: HTMLAudioElement | null = null;
 
   constructor(private router: Router) {}
 
@@ -82,11 +84,22 @@ export class GameComponent implements AfterViewInit, OnDestroy {
 
     const canvas = this.canvasRef.nativeElement;
     console.log('[GameComponent] creating initGame with canvas', canvas);
+    // Start background music (user must have initiated via Start button)
+    try{
+      if(!this.bgm){
+        this.bgm = new Audio('/assets/sound/background.mp3');
+        this.bgm.loop = true;
+        this.bgm.volume = 0.25;
+      }
+      // play returns a promise; ignore rejection (browsers may block autoplay)
+      this.bgm.play().catch((err)=>console.warn('BGM play blocked', err));
+    }catch(err){ console.warn('Error starting BGM', err); }
     this.gameInstance = initGame(canvas, {
       hudScore: (typeof document !== 'undefined') ? document.querySelector('#hud-score') : null,
       hudLives: (typeof document !== 'undefined') ? document.querySelector('#hud-lives') : null,
       hudLevel: (typeof document !== 'undefined') ? document.querySelector('#hud-level') : null,
-      onGameOver: (score: number) => this.onGameOverClean(score)
+      onGameOver: (score: number) => this.onGameOverClean(score),
+      onFire: () => this.playShotSound()
     });
     // attach keyboard handlers
     this.attachKeyboardControls();
@@ -98,6 +111,8 @@ export class GameComponent implements AfterViewInit, OnDestroy {
       this.gameInstance.destroy();
       this.gameInstance = null;
       this.detachKeyboardControls();
+      // stop background music when pausing/stopping
+      try{ if(this.bgm){ this.bgm.pause(); this.bgm.currentTime = 0; } }catch(e){console.warn('Error stopping BGM', e);} 
     } else {
       const canvas = this.canvasRef.nativeElement;
       this.gameInstance = initGame(canvas, {
@@ -121,7 +136,7 @@ export class GameComponent implements AfterViewInit, OnDestroy {
       if(code === 'ArrowRight' || code === 'KeyD') { map.right = true; e.preventDefault(); }
       if(code === 'ArrowUp' || code === 'KeyW') { map.up = true; e.preventDefault(); }
       if(code === 'ArrowDown' || code === 'KeyS') { map.down = true; e.preventDefault(); }
-      if(code === 'Space' || code === 'Spacebar') { map.shoot = true; e.preventDefault(); }
+      if(code === 'Space' || code === 'Spacebar') { map.shootOnce = true; e.preventDefault(); }
       this.gameInstance.setInput(map);
     };
 
@@ -133,7 +148,7 @@ export class GameComponent implements AfterViewInit, OnDestroy {
       if(code === 'ArrowRight' || code === 'KeyD') { map.right = false; e.preventDefault(); }
       if(code === 'ArrowUp' || code === 'KeyW') { map.up = false; e.preventDefault(); }
       if(code === 'ArrowDown' || code === 'KeyS') { map.down = false; e.preventDefault(); }
-      if(code === 'Space' || code === 'Spacebar') { map.shoot = false; e.preventDefault(); }
+      // Do not toggle shoot on keyup; shooting is a one-shot on keydown only
       this.gameInstance.setInput(map);
     };
 
@@ -173,6 +188,8 @@ export class GameComponent implements AfterViewInit, OnDestroy {
     }catch(e){ console.warn('Error destroying game instance on game over', e); }
     this.gameInstance = null;
     this.detachKeyboardControls();
+    // stop background music when game ends
+    try{ if(this.bgm){ this.bgm.pause(); this.bgm.currentTime = 0; } }catch(e){console.warn('Error stopping BGM', e);} 
     // show gameover UI
     this.score = sc;
     const final = (typeof document !== 'undefined') ? document.getElementById('final-score') : null;
@@ -186,6 +203,26 @@ export class GameComponent implements AfterViewInit, OnDestroy {
   ngOnDestroy(): void {
     if(this.gameInstance && this.gameInstance.destroy) this.gameInstance.destroy();
     this.detachKeyboardControls();
+    try{ if(this.bgm){ this.bgm.pause(); this.bgm.currentTime = 0; } }catch(e){console.warn('Error stopping BGM on destroy', e);} 
+    try{ if(this.shotSfx){ this.shotSfx.pause(); this.shotSfx.currentTime = 0; } }catch(e){console.warn('Error stopping shot SFX on destroy', e);} 
+  }
+
+  private playShotSound(){
+    try{
+      // lazy-create a reusable audio element and clone it to allow overlap
+      if(!this.shotSfx){
+        this.shotSfx = new Audio('/assets/sound/shot.mp3');
+        this.shotSfx.preload = 'auto';
+      }
+
+      // clone the audio element so multiple shots can overlap
+      const s = (this.shotSfx.cloneNode() as HTMLAudioElement);
+      s.volume = 0.9;
+      s.play().catch((err)=>{
+        // playback can be blocked if user hasn't interacted; ignore
+        // console.debug('Shot SFX play blocked', err);
+      });
+    }catch(err){ console.warn('Error playing shot SFX', err); }
   }
 }
 

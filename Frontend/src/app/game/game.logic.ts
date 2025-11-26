@@ -3,7 +3,9 @@ export function initGame(canvas: HTMLCanvasElement, els: {
   hudScore: HTMLElement | null,
   hudLives: HTMLElement | null,
   hudLevel: HTMLElement | null,
-  onGameOver?: (score: number)=>void
+  onGameOver?: (score: number)=>void,
+  // optional callback invoked when the player fires a shot
+  onFire?: ()=>void
 }){
   const ctx = canvas.getContext('2d')!;
   const W = canvas.width, H = canvas.height;
@@ -16,6 +18,8 @@ export function initGame(canvas: HTMLCanvasElement, els: {
   let score = 0, lives = 100, level = 1, spawnWaveCount = 0, lastWaveAt = 0, fireCooldown = 0;
 
   const input: any = { left:false, right:false, up:false, down:false, shoot:false };
+  // support a one-shot firing flag `shootOnce` so firing can be triggered per key press
+  input.shootOnce = false;
 
   const imagesToLoad = {
     ship: '/assets/picture/playership.png',
@@ -70,6 +74,8 @@ function fireBullet() {
     speed: 8,
     damage: 15 + player.levelWeapon * 5,
   });
+  // notify host that a shot was fired (for sound effects, analytics, etc.)
+  try{ if (els.onFire) els.onFire(); } catch(e){ /* ignore */ }
 }
 
 /* -------------------- METEOR WAVE -------------------- */
@@ -147,15 +153,18 @@ function applyMachineDamage(n: number) {
   player.x = clamp(player.x, 10, W - 10);
   player.y = clamp(player.y, 10, H - 10);
 
-  /* -------------------- SHOOTING -------------------- */
-  if (input.shoot) {
-    fireCooldown -= 1;
+  /* -------------------- SHOOTING (one-shot) -------------------- */
+  // Countdown cooldown each frame
+  if (fireCooldown > 0) fireCooldown -= 1;
+
+  // If a one-shot flag is set by input, fire once and clear the flag
+  if (input.shootOnce) {
     if (fireCooldown <= 0) {
       fireBullet();
       fireCooldown = Math.max(6 - player.levelWeapon, 2);
     }
-  } else {
-    fireCooldown = 0;
+    // consume the one-shot trigger so holding Space doesn't retrigger
+    input.shootOnce = false;
   }
 
   /* -------------------- BULLET UPDATE -------------------- */
