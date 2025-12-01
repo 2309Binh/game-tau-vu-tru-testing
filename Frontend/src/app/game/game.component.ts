@@ -15,7 +15,7 @@ export class GameComponent implements AfterViewInit, OnDestroy {
   @ViewChild('canvas', { static: true }) canvasRef!: ElementRef<HTMLCanvasElement>;
 
   score = 0;
-  lives = 100;
+  lives = 50;
   level = 1;
 
   private gameInstance: any = null;
@@ -90,7 +90,6 @@ export class GameComponent implements AfterViewInit, OnDestroy {
 
     // Reset stats
     this.score = 0;
-    this.lives = 3;
     this.level = 1;
 
     const canvas = this.canvasRef.nativeElement;
@@ -112,7 +111,9 @@ export class GameComponent implements AfterViewInit, OnDestroy {
       hudLives: document.querySelector('#hud-lives'),
       hudLevel: document.querySelector('#hud-level'),
       onGameOver: (score: number) => this.onGameOverClean(score),
-      onFire: () => this.playShotSound()
+      onFire: () => this.playShotSound(),
+      // pass starting lives into game logic so edits to `this.lives` take effect
+      startLives: this.lives,
     });
 
     this.attachKeyboardControls();

@@ -5,7 +5,9 @@ export function initGame(canvas: HTMLCanvasElement, els: {
   hudLevel: HTMLElement | null,
   onGameOver?: (score: number)=>void,
   // optional callback invoked when the player fires a shot
-  onFire?: ()=>void
+  onFire?: ()=>void,
+  // optional starting lives override
+  startLives?: number
 }){
   const ctx = canvas.getContext('2d')!;
   const W = canvas.width, H = canvas.height;
@@ -15,7 +17,7 @@ export function initGame(canvas: HTMLCanvasElement, els: {
   let bullets: any[] = [];
   let meteors: any[] = [];
   let powerups: any[] = [];
-  let score = 0, lives = 100, level = 1, spawnWaveCount = 0, lastWaveAt = 0, fireCooldown = 0;
+  let score = 0, lives = (typeof els.startLives === 'number' ? els.startLives : 100), level = 1, spawnWaveCount = 0, lastWaveAt = 0, fireCooldown = 0;
 
   const input: any = { left:false, right:false, up:false, down:false, shoot:false };
   // support a one-shot firing flag `shootOnce` so firing can be triggered per key press
@@ -254,15 +256,6 @@ function applyMachineDamage(n: number) {
     }
   }
 
-  /* -------------------- RANDOM DAMAGE EVENT (disabled) -------------------- */
-  // Random damage disabled — prevents unexpected life loss during playtesting.
-  // If you want to re-enable later, restore the original block below.
-  /*
-  if (Math.random() < 0.005 + level * 0.001) {
-    if (Math.random() < 0.08) applyPlayerDamage(1);
-  }
-  */
-
   /* -------------------- UPDATE HUD -------------------- */
   if (els.hudScore) els.hudScore.textContent = String(score);
   if (els.hudLives) els.hudLives.textContent = String(lives);
@@ -325,7 +318,7 @@ function render() {
 }
 
 /* ---------------------------------------------------- */
-/* DRAW PLAYER                                          */
+/* DRAW MACHINE                                          */
 /* ---------------------------------------------------- */
 function drawMachine(x: number, y: number) {
   ctx.save();
@@ -372,7 +365,7 @@ function drawPlayer(x: number, y: number) {
     return;
   }
 
-  // Fallback triangle ship
+  // Fallback triangle ship if image isn't available
   ctx.fillStyle = '#fff';
   ctx.beginPath();
   ctx.moveTo(x, y - 10);
