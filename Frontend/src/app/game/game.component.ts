@@ -24,6 +24,7 @@ export class GameComponent implements AfterViewInit, OnDestroy {
 
   private bgm: HTMLAudioElement | null = null;
   private shotSfx: HTMLAudioElement | null = null;
+  private machineHitSfx: HTMLAudioElement | null = null;
 
   constructor(private router: Router) {}
 
@@ -100,7 +101,7 @@ export class GameComponent implements AfterViewInit, OnDestroy {
       if (!this.bgm) {
         this.bgm = new Audio('/assets/sound/background.mp3');
         this.bgm.loop = true;
-        this.bgm.volume = 0.25;
+        this.bgm.volume = 0.05;
       }
       this.bgm.play().catch((err) => console.warn('BGM play blocked', err));
     } catch (err) { console.warn('Error starting BGM', err); }
@@ -112,6 +113,7 @@ export class GameComponent implements AfterViewInit, OnDestroy {
       hudLevel: document.querySelector('#hud-level'),
       onGameOver: (score: number) => this.onGameOverClean(score),
       onFire: () => this.playShotSound(),
+      onMachineHit: () => this.playMachineHitSound(),
       // pass starting lives into game logic so edits to `this.lives` take effect
       startLives: this.lives,
     });
@@ -140,7 +142,10 @@ export class GameComponent implements AfterViewInit, OnDestroy {
         hudScore: document.querySelector('#hud-score'),
         hudLives: document.querySelector('#hud-lives'),
         hudLevel: document.querySelector('#hud-level'),
-        onGameOver: (score: number) => this.onGameOver(score)
+        onGameOver: (score: number) => this.onGameOver(score),
+        onFire: () => this.playShotSound(),
+        onMachineHit: () => this.playMachineHitSound(),
+        startLives: this.lives,
       });
 
       this.attachKeyboardControls();
@@ -297,6 +302,12 @@ export class GameComponent implements AfterViewInit, OnDestroy {
         this.shotSfx.currentTime = 0;
       }
     } catch {}
+    try {
+      if (this.machineHitSfx) {
+        this.machineHitSfx.pause();
+        this.machineHitSfx.currentTime = 0;
+      }
+    } catch {}
   }
 
   private playShotSound() {
@@ -312,6 +323,22 @@ export class GameComponent implements AfterViewInit, OnDestroy {
       s.play().catch(() => {});
     } catch (err) {
       console.warn('Error playing shot SFX', err);
+    }
+  }
+
+  private playMachineHitSound() {
+    try {
+      console.log('[GameComponent] playMachineHitSound called');
+      if (!this.machineHitSfx) {
+        this.machineHitSfx = new Audio('/assets/sound/hit.mp3');
+        this.machineHitSfx.preload = 'auto';
+      }
+
+      const s = this.machineHitSfx.cloneNode() as HTMLAudioElement;
+      s.volume = 0.9;
+      s.play().catch((err)=>{ console.warn('Machine hit SFX play blocked or failed', err); });
+    } catch (err) {
+      console.warn('Error playing machine hit SFX', err);
     }
   }
 }

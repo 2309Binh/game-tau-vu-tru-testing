@@ -6,6 +6,8 @@ export function initGame(canvas: HTMLCanvasElement, els: {
   onGameOver?: (score: number)=>void,
   // optional callback invoked when the player fires a shot
   onFire?: ()=>void,
+  // optional callback invoked when the machine is hit by a meteor
+  onMachineHit?: ()=>void,
   // optional starting lives override
   startLives?: number
 }){
@@ -18,11 +20,17 @@ export function initGame(canvas: HTMLCanvasElement, els: {
   let meteors: any[] = [];
   let powerups: any[] = [];
   let score = 0, lives = (typeof els.startLives === 'number' ? els.startLives : 100), level = 1, spawnWaveCount = 0, lastWaveAt = 0, fireCooldown = 0;
+  // machine invulnerability: timestamp (ms) until which machine ignores further damage
+  let machineInvulnerableUntil = 0;
 
   const input: any = { left:false, right:false, up:false, down:false, shoot:false };
   // support a one-shot firing flag `shootOnce` so firing can be triggered per key press
   input.shootOnce = false;
 
+  // Machine drawing/collision constants
+  const MACHINE_SCALE = 4;
+  const MACHINE_DRAW_W = 96; // base draw width (unscaled)
+  const MACHINE_DRAW_H = 48; // base draw height (unscaled)
   const imagesToLoad = {
     ship: '/assets/picture/playership.png',
     meteor: '/assets/picture/meteor.png',
@@ -198,10 +206,23 @@ function applyMachineDamage(n: number) {
     m.x += Math.sin((m.seed || 0 + Date.now() / 1000) * 2) * 0.5;
 
     // Meteor hits the machine
-    // Tighten collision window to reduce accidental hits and lower damage
-    if (m.y > H - 30 && Math.abs(m.x - W / 2) < 40) {
+    // Use visual machine size (scaled) to compute hitbox so collision follows appearance
+    const halfW = (MACHINE_DRAW_W / 2) * MACHINE_SCALE;
+    const halfH = (MACHINE_DRAW_H / 2) * MACHINE_SCALE;
+    const machineTopY = H - 20 - halfH; // top Y of the machine in canvas coords
+    const hitX = Math.abs(m.x - W / 2) < Math.max(32, halfW * 0.9);
+    const hitY = m.y > machineTopY; // meteor below top of machine
+    if (hitX && hitY) {
       const dmg = Math.max(1, Math.ceil(m.strength * 0.03));
-      applyMachineDamage(dmg);
+      const now = Date.now();
+      // Notify host that machine was hit (UI can play SFX)
+      try{ if (els.onMachineHit) els.onMachineHit(); } catch(e){ /* ignore */ }
+      // If machine is currently invulnerable, ignore damage but still remove meteor
+      if (now > machineInvulnerableUntil) {
+        applyMachineDamage(dmg);
+        // start 1 second invulnerability where machine will blink and ignore further hits
+        machineInvulnerableUntil = now + 1000;
+      }
       meteors.splice(i, 1);
       continue;
     }
@@ -323,7 +344,17 @@ function render() {
 function drawMachine(x: number, y: number) {
   ctx.save();
   ctx.translate(x, y);
-  ctx.scale(3, 3);
+  // Scale machine up 4x
+  ctx.scale(4, 4);
+
+  // Blink when invulnerable: if current time < machineInvulnerableUntil then toggle alpha
+  const now = Date.now();
+  const isInv = (typeof machineInvulnerableUntil === 'number') && now < machineInvulnerableUntil;
+  if (isInv) {
+    // blink every 120ms
+    const on = Math.floor(now / 120) % 2 === 0;
+    ctx.globalAlpha = on ? 1 : 0.18;
+  }
 
   const img = images.maschine;
   if (img) {
@@ -331,6 +362,8 @@ function drawMachine(x: number, y: number) {
     const drawH = 48;
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+    // restore alpha in case it was changed
+    if (isInv) ctx.globalAlpha = 1;
     ctx.restore();
     return;
   }
@@ -345,6 +378,8 @@ function drawMachine(x: number, y: number) {
   ctx.fillStyle = '#f9d423';
   ctx.fillRect(-6, -6, 12, 12);
 
+  // restore alpha if we changed it for blinking
+  if (isInv) ctx.globalAlpha = 1;
   ctx.restore();
 }
 
