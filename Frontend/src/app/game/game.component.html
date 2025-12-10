@@ -1,50 +1,46 @@
 <div class="game-root">
-  <div id="start-screen" class="screen">
-    <h1>Game</h1>
-    <div class="score-list">
-      <div><strong>All-time high:</strong> <span id="alltime-high">0</span></div>
-      <div><strong>Today's high:</strong> <span id="daily-high">0</span></div>
-    </div>
-    <button id="start-btn" (click)="start()">Start</button>
-    <button id="help-btn" class="ghost" (click)="showHelp()">How to play</button>
-    <p class="muted">Design: pixelart, dark • Arrow keys / WASD to move • Hold space to shoot</p>
-  </div>
-
+  
   <div id="help-screen" class="screen hidden">
     <h2>How to play</h2>
     <ul>
-      <li>Protect the machine (bottom center). Meteors fall from top.</li>
-      <li>Move with <strong>arrow keys</strong> or <strong>WASD</strong>, hold <strong>Space</strong> to fire.</li>
-      <li>Destroy meteors to get points; some drop powerups or powerdowns.</li>
-      <li>If the machine is hit, its confidence band swings and you take damage.</li>
-      <li>Survive as long as possible — levels get harder.</li>
+      <li>Move: Arrow Keys or WASD</li>
+      <li>Shoot: Space</li>
+      <li>If anomalies hit bottom, system status drops!</li>
     </ul>
     <button id="back-btn" (click)="hideHelp()">Back</button>
   </div>
 
   <div id="game-screen" class="screen hidden">
-    <header id="hud">
-      <div>All-time: <span id="hud-alltime">0</span></div>
-      <div>Daily: <span id="hud-daily">0</span></div>
-      <div>Lives: <span id="hud-lives">{{lives}}</span></div>
-      <div>Score: <span id="hud-score">{{score}}</span></div>
-      <div>Level: <span id="hud-level">{{level}}</span></div>
-    </header>
+    
+    <app-hud 
+      [score]="score" 
+      [highscore]="highscore" 
+      [lives]="lives" 
+      [wave]="level"> 
+    </app-hud>
+
     <canvas #canvas width="900" height="600"></canvas>
+    
     <div id="overlay">
       <div id="pause">Paused</div>
     </div>
   </div>
 
-  <div id="gameover-screen" class="screen hidden">
-    <h2>Game Over</h2>
-    <p>Your score: <span id="final-score">0</span></p>
-    <label for="name">Enter name for highscore:</label>
-    <input id="name" maxlength="12" placeholder="Player" />
-    <div class="buttons">
-      <button id="save-score" (click)="saveScore()">Save</button>
-      <button id="retry" (click)="start()">Retry</button>
-      <button id="back-to-menu" (click)="back()">Back to menu</button>
+
+<!-- GAME OVER SCREEN (neuer Bereich) -->
+<div id="gameover-screen" class="hidden">
+  <div class="gameover-bg">
+
+    <h1 class="gameover-title">GAME OVER</h1>
+
+    <div class="score-box">
+      Your Score:
+      <span id="final-score">0</span>
     </div>
+
+    <button class="retry-btn" (click)="start()">Retry</button>
+    <button class="menu-btn" (click)="back()">Back to Menu</button>
+
   </div>
+
 </div>

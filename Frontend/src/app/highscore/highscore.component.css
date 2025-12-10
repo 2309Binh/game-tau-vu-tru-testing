@@ -1,0 +1,39 @@
+.highscore-container {
+  text-align: center;
+  color: #00eaff;
+  margin-top: 40px;
+  font-family: 'Orbitron', sans-serif;
+}
+
+.glow {
+  font-size: 48px;
+  text-shadow: 0 0 15px #00eaff;
+}
+
+.score-table {
+  width: 60%;
+  margin: 30px auto;
+  border-collapse: collapse;
+  color: #00eaff;
+}
+
+.score-table th,
+.score-table td {
+  padding: 10px;
+  border-bottom: 1px solid #00eaff55;
+}
+
+.back-btn {
+  margin-top: 20px;
+  padding: 10px 25px;
+  background: transparent;
+  border: 2px solid #00eaff;
+  color: #00eaff;
+  font-size: 20px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.back-btn:hover {
+  background-color: #00eaff22;
+}

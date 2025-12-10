@@ -1,0 +1,21 @@
+<div class="highscore-container">
+  <h1 class="glow">HIGHSCORES</h1>
+
+  <table class="score-table">
+    <tr>
+      <th>Platz</th>
+      <th>Spieler</th>
+      <th>Punkte</th>
+      <th>Datum</th>
+    </tr>
+
+    <tr *ngFor="let h of highscores; let i = index">
+      <td>{{ i + 1 }}</td>
+      <td>{{ h.playerName }}</td>
+      <td>{{ h.score }}</td>
+      <td>{{ h.createdAt | date: 'dd.MM.yyyy HH:mm' }}</td>
+    </tr>
+  </table>
+
+  <button routerLink="/" class="back-btn">Zurück</button>
+</div>

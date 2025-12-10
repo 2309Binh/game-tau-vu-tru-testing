@@ -18,3 +18,64 @@ button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);colo
 #gameover-screen input{padding:8px;margin:6px;border-radius:4px;border:1px solid rgba(255,255,255,0.06);background:#111;color:#fff}
 .buttons{display:flex;gap:8px}
 @media (max-width:920px){canvas{width:100%;height:auto}}
+/* === GAME OVER SCREEN === */
+
+.gameover-bg {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: #04070d;
+  background-image: radial-gradient(#0af 1px, transparent 1px);
+  background-size: 30px 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Press Start 2P', monospace;
+  color: #00eaff;
+  text-align: center;
+}
+
+.gameover-title {
+  font-size: 64px;
+  margin-bottom: 40px;
+  text-shadow: 0 0 25px #00eaff;
+}
+
+.score-box {
+  font-size: 28px;
+  margin-bottom: 50px;
+  text-shadow: 0 0 12px #00eaff;
+}
+
+.retry-btn {
+  padding: 18px 70px;
+  font-size: 28px;
+  border: 4px solid #00eaff;
+  background: transparent;
+  color: #00eaff;
+  margin-bottom: 25px;
+  cursor: pointer;
+  transition: 0.2s;
+  text-shadow: 0 0 12px #00eaff;
+}
+
+.retry-btn:hover {
+  transform: scale(1.05);
+  background: rgba(0, 234, 255, 0.2);
+}
+
+.menu-btn {
+  padding: 14px 40px;
+  font-size: 20px;
+  background: none;
+  border: none;
+  color: #00eaff;
+  cursor: pointer;
+  text-shadow: 0 0 12px #00eaff;
+}
+
+.menu-btn:hover {
+  transform: scale(1.05);
+}

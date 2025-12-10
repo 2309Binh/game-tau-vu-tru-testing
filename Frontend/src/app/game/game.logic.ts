@@ -1,360 +1,234 @@
-// Minimal TypeScript port of the standalone game logic.
-export function initGame(canvas: HTMLCanvasElement, els: {
-  hudScore: HTMLElement | null,
-  hudLives: HTMLElement | null,
-  hudLevel: HTMLElement | null,
-  onGameOver?: (score: number)=>void,
-  // optional callback invoked when the player fires a shot
-  onFire?: ()=>void,
-  // optional callback invoked when the machine is hit by a meteor
-  onMachineHit?: ()=>void,
-  // optional starting lives override
-  startLives?: number
-}){
+import { Anomalie } from "../entities/anomalie";
+import { Player } from "../entities/player";
+import { AnomalieModel, BulletModel, PowerupModel, PlayerModel, InputState } from "../core/game-models";
+import { Powerup } from "../entities/powerup";
+import { Bullet } from "../entities/bullet";
+import { GameConfig } from "../core/game-config";
+
+export interface GameInitConfig {
+  onScoreUpdate?: (score: number) => void;
+  onLivesUpdate?: (lives: number) => void;
+  onLevelUpdate?: (level: number) => void;
+  onGameOver?: (score: number) => void;
+  
+  pointsPerLevel: number;
+
+  hudScore?: HTMLElement | null;
+  hudLives?: HTMLElement | null;
+  hudLevel?: HTMLElement | null;
+}
+
+export function initGame(canvas: HTMLCanvasElement, config: GameInitConfig) {
   const ctx = canvas.getContext('2d')!;
   const W = canvas.width, H = canvas.height;
+
   let raf = 0;
   let running = true;
-  let player = { x: W/2, y: H-80, speed:4, levelWeapon:1 };
-  let bullets: any[] = [];
-  let meteors: any[] = [];
-  let powerups: any[] = [];
-  let score = 0, lives = (typeof els.startLives === 'number' ? els.startLives : 100), level = 1, spawnWaveCount = 0, lastWaveAt = 0, fireCooldown = 0;
-  // machine invulnerability: timestamp (ms) until which machine ignores further damage
-  let machineInvulnerableUntil = 0;
 
-  const input: any = { left:false, right:false, up:false, down:false, shoot:false };
-  // support a one-shot firing flag `shootOnce` so firing can be triggered per key press
-  input.shootOnce = false;
+  const player = new Player(); 
+  const anomalie = new Anomalie();
+  const bullet = new Bullet(player.state);
+  
+  let bullets: BulletModel[] = [];
+  let anomalien: AnomalieModel[] = []; 
+  let powerups: Powerup[] = [];
 
-  // Machine drawing/collision constants
-  const MACHINE_SCALE = 4;
-  const MACHINE_DRAW_W = 96; // base draw width (unscaled)
-  const MACHINE_DRAW_H = 48; // base draw height (unscaled)
-  const imagesToLoad = {
-    ship: '/assets/picture/playership.png',
-    meteor: '/assets/picture/meteor.png',
-    maschine: '/assets/picture/maschine.png',
+  let fireCooldown = 0;
+
+  // INPUT
+  const input: InputState = { left: false, right: false, up: false, down: false, shootOnce: false };
+  const keyDownListener = (e: KeyboardEvent) => {
+    switch (e.key) {
+      case "ArrowLeft": case "a": input.left = true; break;
+      case "ArrowRight": case "d": input.right = true; break;
+      case "ArrowUp": case "w": input.up = true; break;
+      case "ArrowDown": case "s": input.down = true; break;
+      case " ": input.shootOnce = true; break;
+    }
   };
+  const keyUpListener = (e: KeyboardEvent) => {
+    switch (e.key) {
+      case "ArrowLeft": case "a": input.left = false; break;
+      case "ArrowRight": case "d": input.right = false; break;
+      case "ArrowUp": case "w": input.up = false; break;
+      case "ArrowDown": case "s": input.down = false; break;
+    }
+  };
+  if (typeof window !== 'undefined') {
+    window.addEventListener("keydown", keyDownListener);
+    window.addEventListener("keyup", keyUpListener);
+  }
+  
+  //-----------------Image Preloading--------------------
 
-  const images: { ship: HTMLImageElement | null; meteor: HTMLImageElement | null; maschine: HTMLImageElement | null } = { ship: null, meteor: null, maschine  : null };
-
-  function loadImage(src: string): Promise<HTMLImageElement>{
-    return new Promise((resolve, reject)=>{
+  const images: { 
+    ship: HTMLImageElement | null; 
+    anomalie: HTMLImageElement[]; 
+    maschine: HTMLImageElement | null 
+  } = { ship: null, anomalie: [], maschine: null };
+  
+  function loadImage(src: string): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
       const img = new Image();
       img.onload = () => resolve(img);
-      img.onerror = (e) => reject(e);
+      img.onerror = () => resolve(img);
       img.src = src;
     });
   }
-
-  async function preloadImages(){
-    const entries = Object.entries(imagesToLoad);
-    for(const [key, url] of entries){
-      try{
-        const img = await loadImage(url);
-        if (key === 'ship') images.ship = img;
-        else if (key === 'meteor') images.meteor = img;
-        else if (key === 'maschine' || key === 'machine') images.maschine = img;
-      } catch(e){
-        console.warn('Failed to load image', url, e);
-        if (key === 'ship') images.ship = null;
-        else if (key === 'meteor') images.meteor = null;
-        else if (key === 'maschine' || key === 'machine') images.maschine = null;
-      }
-    }
-  }
-
- /* -------------------- UTILS -------------------- */
-function clamp(v: number, a: number, b: number) {
-  return Math.max(a, Math.min(b, v));
-}
-
-function dist(ax: number, ay: number, bx: number, by: number) {
-  const dx = ax - bx;
-  const dy = ay - by;
-  return Math.sqrt(dx * dx + dy * dy);
-}
-
-/* -------------------- BULLET -------------------- */
-function fireBullet() {
-  bullets.push({
-    x: player.x,
-    y: player.y - 14,
-    speed: 8,
-    damage: 15 + player.levelWeapon * 5,
-  });
-  // notify host that a shot was fired (for sound effects, analytics, etc.)
-  try{ if (els.onFire) els.onFire(); } catch(e){ /* ignore */ }
-}
-
-/* -------------------- METEOR WAVE -------------------- */
-function spawnWave() {
-  const count =
-    2 +
-    Math.floor(level * 0.8) +
-    Math.floor(Math.random() * 2);
-
-  for (let i = 0; i < count; i++) {
-    const r = 12 + Math.floor(Math.random() * 18) + level * 2;
-    const x = Math.random() * (W - 80) + 40;
-
-    meteors.push({
-      x,
-      y: -40 - Math.random() * 200,
-      radius: r,
-      speed:
-        1 +
-        Math.random() * 0.6 +
-        level * 0.08,
-      hp: r * 2,
-      maxHp: r * 2,
-      strength: Math.round(r * 10),
-      score:
-        100 +
-        Math.round(level * 10) +
-        Math.round(r),
-    });
-  }
-
-  spawnWaveCount++;
-  if (spawnWaveCount % 5 === 0) levelUp();
-}
-
-/* -------------------- LEVEL UP -------------------- */
-function levelUp() {
-  level++;
-
-  if (level % 2 === 0) {
-    player.levelWeapon++;
-  } else {
-    player.speed += 0.4;
-  }
-}
-
-/* -------------------- POWERUP -------------------- */
-function applyPowerup(p: any) {
-  if (p.type === "good") {
-    score += 200;
-    player.levelWeapon = Math.min(5, player.levelWeapon + 1);
-  } else {
-    score = Math.max(0, score - 150);
-    player.speed = Math.max(2, player.speed - 0.6);
-  }
-}
-
-/* -------------------- DAMAGE -------------------- */
-function applyPlayerDamage(n: number) {
-  lives -= n;
-}
-
-function applyMachineDamage(n: number) {
-  lives -= Math.max(1, Math.round(n / 2));
-}
-
-
-  function step() {
-  /* -------------------- PLAYER MOVEMENT -------------------- */
-  if (input.left)  player.x -= player.speed;
-  if (input.right) player.x += player.speed;
-  if (input.up)    player.y -= player.speed;
-  if (input.down)  player.y += player.speed;
-
-  player.x = clamp(player.x, 10, W - 10);
-  player.y = clamp(player.y, 10, H - 10);
-
-  /* -------------------- SHOOTING (one-shot) -------------------- */
-  // Countdown cooldown each frame
-  if (fireCooldown > 0) fireCooldown -= 1;
-
-  // If a one-shot flag is set by input, fire once and clear the flag
-  if (input.shootOnce) {
-    if (fireCooldown <= 0) {
-      fireBullet();
-      fireCooldown = Math.max(6 - player.levelWeapon, 2);
-    }
-    // consume the one-shot trigger so holding Space doesn't retrigger
-    input.shootOnce = false;
-  }
-
-  /* -------------------- BULLET UPDATE -------------------- */
-  for (let i = bullets.length - 1; i >= 0; i--) {
-    const b = bullets[i];
-    b.y -= b.speed;
-
-    if (b.y < -10) {
-      bullets.splice(i, 1);
-    }
-  }
-
-  /* -------------------- SPAWN METEORS -------------------- */
-  const needNewWave =
-    meteors.length === 0 ||
-    (Date.now() - lastWaveAt > 1200 &&
-     meteors.length < Math.max(1, 3 + Math.floor(level / 2)));
-
-  if (needNewWave) {
-    spawnWave();
-    lastWaveAt = Date.now();
-  }
-
-  /* -------------------- METEOR MOVEMENT -------------------- */
-  for (let i = meteors.length - 1; i >= 0; i--) {
-    const m = meteors[i];
-
-    m.y += m.speed;
-    m.x += Math.sin((m.seed || 0 + Date.now() / 1000) * 2) * 0.5;
-
-    // Meteor hits the machine
-    // Use visual machine size (scaled) to compute hitbox so collision follows appearance
-    const halfW = (MACHINE_DRAW_W / 2) * MACHINE_SCALE;
-    const halfH = (MACHINE_DRAW_H / 2) * MACHINE_SCALE;
-    const machineTopY = H - 20 - halfH; // top Y of the machine in canvas coords
-    const hitX = Math.abs(m.x - W / 2) < Math.max(32, halfW * 0.9);
-    const hitY = m.y > machineTopY; // meteor below top of machine
-    if (hitX && hitY) {
-      const dmg = Math.max(1, Math.ceil(m.strength * 0.03));
-      const now = Date.now();
-      // Notify host that machine was hit (UI can play SFX)
-      try{ if (els.onMachineHit) els.onMachineHit(); } catch(e){ /* ignore */ }
-      // If machine is currently invulnerable, ignore damage but still remove meteor
-      if (now > machineInvulnerableUntil) {
-        applyMachineDamage(dmg);
-        // start 1 second invulnerability where machine will blink and ignore further hits
-        machineInvulnerableUntil = now + 1000;
-      }
-      meteors.splice(i, 1);
-      continue;
-    }
-
-    // Meteor out of screen
-    if (m.y > H + 50) {
-      meteors.splice(i, 1);
-    }
-  }
-
-  /* -------------------- BULLET - METEOR COLLISION -------------------- */
-  for (let i = meteors.length - 1; i >= 0; i--) {
-    const m = meteors[i];
-
-    for (let j = bullets.length - 1; j >= 0; j--) {
-      const b = bullets[j];
-
-      if (dist(b.x, b.y, m.x, m.y) < m.radius + 2) {
-        bullets.splice(j, 1);
-        m.hp -= b.damage;
-
-        if (m.hp <= 0) {
-          score += m.score;
-
-          // Chance to spawn powerup
-          if (Math.random() < 0.18) {
-            powerups.push({
-              x: m.x,
-              y: m.y,
-              type: Math.random() < 0.7 ? "good" : "bad",
-              speed: 1 + Math.random() * 0.6
-            });
-          }
-
-          meteors.splice(i, 1);
+  
+  async function preloadImages() {
+    const entries = Object.entries(GameConfig.imagesToLoad);
+  
+    for (const [key, value] of entries) {
+      try {
+        if (Array.isArray(value)) {
+          // mehrere Bilder parallel laden
+          const loadedImages = await Promise.all(value.map(loadImage));
+          (images as any)[key] = loadedImages;
+        } else {
+          // einzelnes Bild
+          const img = await loadImage(value as string);
+          (images as any)[key] = img;
         }
-        break;
+      } catch (e) {
+        console.warn("Failed to load image(s)", value, e);
+        (images as any)[key] = Array.isArray(value) ? [] : null;
       }
     }
   }
 
-  /* -------------------- POWERUP UPDATE -------------------- */
-  for (let i = powerups.length - 1; i >= 0; i--) {
-    const p = powerups[i];
-    p.y += p.speed;
+ /* -------------------- Berechnet entfernung zwischen zwei punkten -------------------- */
 
-    if (dist(p.x, p.y, player.x, player.y) < 18) {
-      applyPowerup(p);
-      powerups.splice(i, 1);
-    } else if (p.y > H + 30) {
-      powerups.splice(i, 1);
+
+    
+    function dist(ax: number, ay: number, bx: number, by: number) {
+      const dx = ax - bx;
+      const dy = ay - by;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+    
+  function step() { //wird jedes frame aufgerufen
+    const livesBefore = player.state.lives; // merken wie viel leben vor frame
+    player.move(input);
+
+    if (fireCooldown > 0) fireCooldown -= 1;
+    if (input.shootOnce) {
+      if (fireCooldown <= 0) {
+        Bullet.fireBullet(bullets, player.state);
+        fireCooldown = Math.max(6 - player.state.levelWeapon, 2);
+      }
+      input.shootOnce = false;
+    }
+
+    for (let i = bullets.length - 1; i >= 0; i--) {
+      const b = bullets[i];
+      b.y -= b.speed;
+      if (b.y < -10) bullets.splice(i, 1);
+    }
+
+    /* -------------------- ANOMALIE UPDATE & MOVE -------------------- */
+    anomalie.updateSpawn(player.state, anomalien.length, images, ctx, anomalien); // ggf. neue Welle
+    anomalie.move(player, anomalien.length, anomalien); // Bewegung + Kollisions-Callback (player.takeDamage)
+
+    /* -------------------- ANOMALIE OFFSCREEN (HIT BOTTOM) -------------------- */
+    for (let i = anomalien.length - 1; i >= 0; i--) {
+      const a = anomalien[i];
+      if (a.y > H) {
+        player.state.lives -= 1;
+        if (config.onLivesUpdate) config.onLivesUpdate(player.state.lives);
+        anomalien.splice(i, 1);
+      }
+    }
+
+    /* -------------------- BULLET - ANOMALIE COLLISION -------------------- */
+    let scoreChanged = false;
+    for (let i = anomalien.length - 1; i >= 0; i--) {
+      const a = anomalien[i];
+      for (let j = bullets.length - 1; j >= 0; j--) {
+        const b = bullets[j];
+        if (dist(b.x, b.y, a.x, a.y) < a.radius + 2) {
+          bullets.splice(j, 1);
+          a.hp -= b.damage;
+
+          if (a.hp <= 0) {
+            player.state.score += a.scorePoints;
+            scoreChanged = true;
+
+            // LEVEL UP LOGIC
+            const pts = config.pointsPerLevel || 2500;
+            const calculatedLevel = Math.floor(player.state.score / pts) + 1;
+            if (calculatedLevel > player.state.level) {
+              player.state.level = calculatedLevel;
+              if (config.onLevelUpdate) config.onLevelUpdate(player.state.level);
+            }
+
+            if (Math.random() < (GameConfig.powerupChance ?? 0.18)) {
+              powerups.push(new Powerup(a));
+            }
+            anomalien.splice(i, 1);
+            break;
+          }
+        }
+      }
+    }
+
+    if (scoreChanged && config.onScoreUpdate) {
+      config.onScoreUpdate(player.state.score);
+    }
+
+    // Powerups
+    for (let i = powerups.length - 1; i >= 0; i--) {
+      const p = powerups[i];
+      p.state.y += p.state.speed;
+      if (dist(p.state.x, p.state.y, player.state.position.x, player.state.position.y) < 18) {
+        p.apply(player.state);
+        powerups.splice(i, 1);
+        if (config.onLivesUpdate) config.onLivesUpdate(player.state.lives);
+        if (config.onScoreUpdate) config.onScoreUpdate(player.state.score);
+      } else if (p.state.y > H + 30) powerups.splice(i, 1);
+    }
+
+    // --- CHECK: Hat sich Leben in diesem Frame verändert ---
+    if (player.state.lives !== livesBefore) {
+      if (config.onLivesUpdate) {
+        config.onLivesUpdate(player.state.lives);
+      }
+    }
+
+    // Game Over
+    if (player.state.lives <= 0) {
+      running = false;
+      if (config.onGameOver) config.onGameOver(player.state.score);
     }
   }
-
-  /* -------------------- UPDATE HUD -------------------- */
-  if (els.hudScore) els.hudScore.textContent = String(score);
-  if (els.hudLives) els.hudLives.textContent = String(lives);
-  if (els.hudLevel) els.hudLevel.textContent = String(level);
-
-  /* -------------------- GAME OVER -------------------- */
-  if (lives <= 0) {
-    running = false;
-    if (els.onGameOver) els.onGameOver(score);
-  }
-}
-
 
 function render() {
-  /* -------------------- BACKGROUND -------------------- */
-  ctx.fillStyle = '#050513';
+  
+  ctx.fillStyle = '#050513'; //background design
   ctx.fillRect(0, 0, W, H);
 
-  /* -------------------- MACHINE & PLAYER -------------------- */
-  drawMachine(W / 2, H - 20);
-  drawPlayer(player.x, player.y);
+  drawMachine(W / 2, H - 50); //Maschine zeichnen
 
-  /* -------------------- BULLETS -------------------- */
-  ctx.fillStyle = '#fff';
-  for (const b of bullets) {
-    ctx.fillRect(b.x - 2, b.y - 6, 4, 8);
-  }
+  player.drawPlayer(player.state.position.x, player.state.position.y, images, ctx); //player zeichnen
 
-  /* -------------------- METEORS -------------------- */
-  for (const m of meteors) {
-    // Draw meteor
-    if (images.meteor) {
-      const img = images.meteor;
-      const size = Math.max(16, m.radius * 2);
-      ctx.drawImage(img, m.x - size / 2, m.y - size / 2, size, size);
-    } else {
-      ctx.fillStyle = '#8b5cf6';
-      ctx.beginPath();
-      ctx.arc(m.x, m.y, m.radius, 0, Math.PI * 2);
-      ctx.fill();
-    }
+  bullet.drawBullet(ctx, bullets); //Bullets zeichnen
 
-    // Draw HP bar
-    ctx.fillStyle = '#111';
-    ctx.fillRect(
-      m.x - 8,
-      m.y - 2,
-      (m.hp / m.maxHp) * m.radius * 1.6,
-      4
-    );
-  }
+  anomalie.drawAnomalie(images, ctx, anomalien); //Anomalie zeichnen
 
-  /* -------------------- POWERUPS -------------------- */
+  /* -------------------- Powerups zeichnen -------------------- */
   for (const p of powerups) {
-    ctx.fillStyle = p.type === 'good' ? '#60d394' : '#ff6b6b';
+    ctx.fillStyle = p.state.type === 'good' ? '#60d394' : '#ff6b6b';
     ctx.beginPath();
-    ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+    ctx.arc(p.state.x, p.state.y, 8, 0, Math.PI * 2);
     ctx.fill();
   }
 }
 
-/* ---------------------------------------------------- */
-/* DRAW MACHINE                                          */
-/* ---------------------------------------------------- */
+//Draw Machine
 function drawMachine(x: number, y: number) {
   ctx.save();
   ctx.translate(x, y);
-  // Scale machine up 4x
-  ctx.scale(4, 4);
-
-  // Blink when invulnerable: if current time < machineInvulnerableUntil then toggle alpha
-  const now = Date.now();
-  const isInv = (typeof machineInvulnerableUntil === 'number') && now < machineInvulnerableUntil;
-  if (isInv) {
-    // blink every 120ms
-    const on = Math.floor(now / 120) % 2 === 0;
-    ctx.globalAlpha = on ? 1 : 0.18;
-  }
+  ctx.scale(8, 7);
 
   const img = images.maschine;
   if (img) {
@@ -362,8 +236,12 @@ function drawMachine(x: number, y: number) {
     const drawH = 48;
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
-    // restore alpha in case it was changed
-    if (isInv) ctx.globalAlpha = 1;
+    /*ctx.drawImage(img, -150 , -drawH / 2, drawW, drawH);
+    ctx.drawImage(img, -100 , -drawH / 2, drawW, drawH);
+    ctx.drawImage(img, -50, -drawH / 2, drawW, drawH);
+    ctx.drawImage(img, -0 , -drawH / 2, drawW, drawH);
+    ctx.drawImage(img, 50 , -drawH / 2, drawW, drawH);*/
+  
     ctx.restore();
     return;
   }
@@ -378,46 +256,13 @@ function drawMachine(x: number, y: number) {
   ctx.fillStyle = '#f9d423';
   ctx.fillRect(-6, -6, 12, 12);
 
-  // restore alpha if we changed it for blinking
-  if (isInv) ctx.globalAlpha = 1;
   ctx.restore();
 }
 
-/* ---------------------------------------------------- */
-/* DRAW PLAYER                                          */
-/* ---------------------------------------------------- */
-function drawPlayer(x: number, y: number) {
-  const img = images.ship;
 
-  // Draw sprite if available
-  if (img) {
-    const drawW = 48;
-    const drawH = 48;
-
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(img, x - drawW / 2, y - drawH / 2, drawW, drawH);
-
-    return;
-  }
-
-  // Fallback triangle ship if image isn't available
-  ctx.fillStyle = '#fff';
-  ctx.beginPath();
-  ctx.moveTo(x, y - 10);
-  ctx.lineTo(x - 8, y + 8);
-  ctx.lineTo(x + 8, y + 8);
-  ctx.closePath();
-  ctx.fill();
-
-  // Laser glow
-  ctx.fillStyle = '#e04cff';
-  ctx.fillRect(x - 1, y - 20, 2, 8);
-}
-
-/* ---------------------------------------------------- */
-/* MAIN LOOP                                            */
-/* ---------------------------------------------------- */
+// game loop
 (async () => {
+  console.log("Preloading images...");
   await preloadImages();
 
   let frame = () => {
@@ -430,9 +275,7 @@ function drawPlayer(x: number, y: number) {
   raf = requestAnimationFrame(frame);
 })();
 
-/* ---------------------------------------------------- */
-/* PUBLIC API                                           */
-/* ---------------------------------------------------- */
+/// API
 return {
   destroy() {
     running = false;
@@ -441,6 +284,7 @@ return {
 
   setInput(s: any) {
     Object.assign(input, s);
-  }
+  },
 };
 }
+

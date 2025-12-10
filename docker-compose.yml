@@ -1,0 +1,63 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: postgres_sld
+    restart: always
+    environment:
+      POSTGRES_USER: gameuser
+      POSTGRES_PASSWORD: gamepass
+      POSTGRES_DB: gamedb
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - game-net
+  
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin_sld
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "8081:80"
+    depends_on:
+      - postgres
+    networks:
+      - game-net
+  
+  backend:
+    build: ./backend
+    container_name: backend_sld
+    restart: always
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: "Host=postgres;Database=gamedb;Username=gameuser;Password=gamepass"
+    ports:
+      - "5000:8080"
+    depends_on:
+      - postgres
+    networks:
+      - game-net
+  
+  frontend:
+    build: ./frontend
+    container_name: frontend_sld
+    restart: always
+    ports:
+      - "4300:80"
+    depends_on:
+      - backend
+    networks:
+      - game-net
+
+networks:
+  game-net:
+
+
+volumes:
+  postgres_data:
