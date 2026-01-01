@@ -1,97 +1,352 @@
-/* === Vollbild === */
-html, body {
-  margin: 0 !important;
-  padding: 0 !important;
-  width: 100%;
-  height: 100%;
-  overflow: hidden !important;
-  background: #04070d !important;
+/* === ARCADE FONT === */
+@font-face {
+  font-family: "Arcade";
+  src: url("/assets/fonts/ARCADE.TTF") format("truetype");
+  font-weight: normal;
+  font-style: normal;
 }
 
-/* === Hintergrund (Pixelsterne) === */
-.game-bg {
-  position: fixed; /* GANZ WICHTIG! */
-  top: 0;
-  left: 0;
 
+/* === Vollbild Container === */
+.screen-container {
   width: 100vw;
   height: 100vh;
+  background: #080a0c;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
 
-  margin: 0;
-  padding: 0;
+  animation: crtFlicker 6s infinite linear;
+}
 
-  background: #04070d;
-  background-image: radial-gradient(#0af 1px, transparent 1px);
-  background-size: 30px 30px;
+/* === Parallax Sterne === */
+.stars {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 200%;
+  height: 200%;
+  pointer-events: none;
+  z-index: 0;
 
+  background-color: #080a0c;
+  background-image: radial-gradient(#ff7b00 2px, transparent 2px);
+  background-size: 40px 40px;
+  image-rendering: pixelated;
+
+  animation: starDrift 28s linear infinite;
+}
+
+@keyframes starDrift {
+  from { transform: translate(0, 0); }
+  to   { transform: translate(-25%, -25%); }
+}
+
+/* === Titel Wrapper === */
+.title-wrapper {
+  text-align: center;
+  margin-bottom: 40px;
+  z-index: 3;
+}
+
+/* === Arcade Titel 3D Glow === */
+.title {
+  font-family: "Arcade", sans-serif !important;
+  font-size: 70px;
+  line-height: 1.1;
+  letter-spacing: 6px;
+  color: #ff9d39;
+
+  text-shadow:
+    3px 3px 0 #c5681f,
+    6px 6px 0 #8a4313,
+    9px 9px 0 #512708,
+    12px 12px 0 #000000,
+    0 0 18px #ff7b00,
+    0 0 35px #ff7b00,
+    0 0 60px #ffb066;
+
+  animation: titlePulse 3s ease-in-out infinite,
+             glowPulse 4s ease-in-out infinite;
+}
+
+@keyframes titlePulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.05); }
+}
+
+@keyframes glowPulse {
+  0% {
+    text-shadow:
+      3px 3px 0 #c5681f,
+      6px 6px 0 #8a4313,
+      9px 9px 0 #512708,
+      12px 12px 0 #000,
+      0 0 18px #ff7b00,
+      0 0 35px #ff9d39,
+      0 0 65px #ffb066;
+  }
+  50% {
+    text-shadow:
+      3px 3px 0 #d67524,
+      6px 6px 0 #a14917,
+      9px 9px 0 #632d0a,
+      12px 12px 0 #000,
+      0 0 30px #ffb066,
+      0 0 60px #ffd3a0,
+      0 0 90px #ffb066;
+  }
+  100% { 
+    text-shadow:
+      3px 3px 0 #c5681f,
+      6px 6px 0 #8a4313,
+      9px 9px 0 #512708,
+      12px 12px 0 #000,
+      0 0 18px #ff7b00,
+      0 0 35px #ff9d39,
+      0 0 60px #ffb066;
+  }
+}
+
+/* === Pixel Dekolinien === */
+.pixel-line {
+  width: 520px;
+  height: 12px;
+  background-image: repeating-linear-gradient(
+    to right,
+    #ff7b00,
+    #ff7b00 12px,
+    transparent 12px,
+    transparent 20px
+  );
+  opacity: 0.9;
+  margin: 20px auto;
+}
+
+/* === BUTTONS === */
+.menu-buttons {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
-
-  color: #00eaff;
-  font-family: 'Press Start 2P', monospace;
-
-  z-index: 1; /* Damit alles im Screen bleibt */
-  overflow: hidden; /* verhindert weiße Ränder */
+  gap: 40px;
+  z-index: 3;
 }
 
-/* === Titel === */
-.title-container {
-  margin-top: 50px;
-  text-align: center;
-}
-
-.title {
-  margin: 0;
-  font-size: 48px;
-  color: #00eaff;
-  text-shadow: 0 0 25px #00eaff;
-  letter-spacing: 3px;
-}
-
-/* === Start Button === */
-.start-btn {
-  margin-top: 60px;
-  padding: 20px 80px;
+/* === Arcade Buttons === */
+.pixel-btn {
+  font-family: "Arcade", sans-serif;
   font-size: 32px;
-  border: 4px solid #00eaff;
+  color: #ff9d39;
   background: transparent;
-  color: #00eaff;
+  border: none;
   cursor: pointer;
-  transition: 0.3s;
-  text-shadow: 0 0 12px #00eaff;
+  letter-spacing: 3px;
+
+  text-shadow:
+    2px 2px 0 #a65316,
+    4px 4px 0 #70360f,
+    6px 6px 0 #3d1c07,
+    8px 8px 0 black,
+    0 0 12px #ff7b00;
+
+  animation: btnGlow 4s ease-in-out infinite;
+  transition: transform 0.2s ease, color 0.2s ease;
 }
 
-.start-btn:hover {
-  background: rgba(0, 234, 255, 0.2);
-  transform: scale(1.05);
+@keyframes btnGlow {
+  0%   { text-shadow: 2px 2px 0 #b55b19, 4px 4px 0 #7d3f12, 6px 6px 0 #432209, 8px 8px 0 black, 0 0 12px #ff7b00; }
+  50%  { text-shadow: 2px 2px 0 #d26c20, 4px 4px 0 #9a4f16, 6px 6px 0 #532909, 8px 8px 0 black, 0 0 35px #ffb066; }
+  100% { text-shadow: 2px 2px 0 #b55b19, 4px 4px 0 #7d3f12, 6px 6px 0 #432209, 8px 8px 0 black, 0 0 12px #ff7b00; }
 }
 
-/* === Menü-Links === */
-.menu-links {
-  margin-top: 40px;
+.pixel-btn:hover {
+  color: #ffd3a0;
+  transform: scale(1.15);
+
+  text-shadow:
+    2px 2px 0 #ff9d39,
+    4px 4px 0 #cc7326,
+    6px 6px 0 #8a4a15,
+    8px 8px 0 black,
+    0 0 60px #ffb066;
+}
+
+.bottom-row {
+  display: flex;
+  gap: 55px;
+}
+
+/* === CRT Flicker === */
+@keyframes crtFlicker {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.97; }
+}
+
+/* === CRT Scanlines Overlay === */
+.screen-container::after {
+  content: "";
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0,0,0,0.18) 0px,
+    rgba(0,0,0,0.18) 2px,
+    transparent 2px,
+    transparent 4px
+  );
+
+  z-index: 50;
+  mix-blend-mode: overlay;
+}
+
+/* === STARTSCREEN HIGHSCORES im selben Arcade-Style === */
+
+.start-highscores{
+  margin-top: 45px;
+  z-index: 3;
+  width: min(900px, 92vw);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.hs-line{
+  width: 100%;
+  height: 10px;
+  opacity: 0.75;
+}
+
+.hs-grid{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 50px;
+  align-items: start;
+}
+
+/* Box wie "Arcade Panel" */
+.hs-box{
+  padding: 16px 18px;
+  border: 2px solid rgba(255, 123, 0, 0.35);
+  background: rgba(8, 10, 12, 0.55);
+  backdrop-filter: blur(2px);
+  border-radius: 6px;
+  box-shadow:
+    0 0 18px rgba(255, 123, 0, 0.12),
+    inset 0 0 14px rgba(255, 123, 0, 0.08);
+}
+
+.hs-title{
+  font-family: "Arcade", sans-serif;
+  font-size: 18px;
+  letter-spacing: 3px;
+  text-align: center;
+  margin: 0 0 14px 0;
+  color: #ff9d39;
+
+  text-shadow:
+    2px 2px 0 #a65316,
+    4px 4px 0 #70360f,
+    0 0 12px #ff7b00;
+}
+
+.hs-box ul{
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Jede Zeile wie Pixel-Text */
+.hs-box li{
+  display: grid;
+  grid-template-columns: 32px 1fr auto auto;
+  gap: 10px;
+  align-items: baseline;
+
+  font-family: "Arcade", sans-serif;
+  font-size: 14px;
+  letter-spacing: 2px;
+  color: #ff9d39;
+
+  padding: 6px 2px;
+  border-bottom: 1px solid rgba(255, 123, 0, 0.18);
+
+  text-shadow:
+    1px 1px 0 #a65316,
+    0 0 10px rgba(255, 123, 0, 0.25);
+}
+
+.hs-box li:last-child{
+  border-bottom: none;
+}
+
+.hs-rank{ opacity: 0.95; }
+.hs-name{ overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hs-score{
+  min-width: 70px;
+  text-align: right;
+  color: #ffd3a0;
+  text-shadow:
+    1px 1px 0 #a65316,
+    0 0 16px rgba(255, 176, 102, 0.35);
+}
+
+.hs-date{
+  opacity: 0.65;
+  margin-left: 4px;
+  font-size: 12px;
+}
+
+/* Mobile: untereinander */
+@media (max-width: 900px){
+  .hs-grid{
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+  .hs-box li{
+    grid-template-columns: 26px 1fr auto;
+  }
+  .hs-date{ display: none; } /* optional: damit’s nicht überläuft */
+}
+
+/* === MODE SELECTION OVERLAY === */
+.mode-overlay{
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.6);
+  z-index: 40;
+}
+
+.mode-card{
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 22px;
+  border: 2px solid rgba(255,123,0,0.35);
+  background: rgba(8,10,12,0.85);
+  backdrop-filter: blur(2px);
+  border-radius: 8px;
+  box-shadow: 0 0 32px rgba(255,123,0,0.12);
   text-align: center;
 }
 
-.menu-btn {
-  display: block;
-  margin: 12px auto;
-  background: none;
-  border: none;
-  color: #00eaff;
-  font-size: 22px;
-  cursor: pointer;
-  text-shadow: 0 0 12px #00eaff;
+.mode-btn{
+  font-size: 28px;
+  padding: 10px 28px;
 }
 
-/* === Roboter === */
-.robot {
-  position: absolute;
-  bottom: 40px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 160px;
-  filter: drop-shadow(0 0 20px #00eaff);
-  z-index: 9999; /* Immer vorne sichtbar */
+.cancel-btn{
+  font-size: 16px;
+  padding: 6px 12px;
+  opacity: 0.85;
 }

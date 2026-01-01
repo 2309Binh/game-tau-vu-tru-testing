@@ -1,9 +1,12 @@
-import { AfterViewInit, Component, ElementRef, NgZone, OnDestroy, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, NgZone, OnDestroy, ViewChild, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { initGame } from './game.logic';
 import { HudComponent } from '../hud/hud';
 import { GameConfig } from '../core/game-config';
+import { HighscoreService } from '../core/services/highscore.service';
+import { HighscoreDto } from '../core/services/highscore.service';
+
 
 @Component({
   standalone: true,
@@ -16,6 +19,10 @@ export class GameComponent implements AfterViewInit, OnDestroy {
   
   @ViewChild('canvas', { static: true }) canvasRef!: ElementRef<HTMLCanvasElement>;
 
+  
+  @ViewChild(HudComponent) hudComponent!: HudComponent; 
+  
+
   // --- EINSTELLUNGEN ---
   readonly POINTS_PER_LEVEL = 2500; 
 
@@ -24,6 +31,11 @@ export class GameComponent implements AfterViewInit, OnDestroy {
   lives = 100; 
   level = 1;
   highscore = 0;
+
+  // --- HIGHSCORE LISTEN ---
+  topAlltime: HighscoreDto[] = [];
+  topToday: HighscoreDto[] = [];
+
   
   // Punkte pro Level
   nextLevelThreshold = this.POINTS_PER_LEVEL;
@@ -35,38 +47,45 @@ export class GameComponent implements AfterViewInit, OnDestroy {
   // Audio
   private bgm: HTMLAudioElement | null = null;
   private shotSfx: HTMLAudioElement | null = null;
+  private _bgmResumeHandler: EventListener | null = null;
 
-  constructor(private router: Router, private ngZone: NgZone) {}
+  constructor(private router: Router, private ngZone: NgZone, private highscoreService: HighscoreService ) {}
 
   ngAfterViewInit(): void {
-    // Canvas Größe
+    // Canvas Größe - Initialer Check
     try{
       const canvas = this.canvasRef?.nativeElement;
       if(canvas){
-        if(!canvas.width) canvas.width = Math.max(400, Math.min(800, canvas.clientWidth || 400));
-        if(!canvas.height) canvas.height = Math.max(300, Math.min(600, canvas.clientHeight || 480));
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
       }
     }catch(e){ console.warn('Error sizing canvas', e); }
 
-    // Highscore laden
-    try{
-      if(typeof window !== 'undefined' && 'localStorage' in window){
-        const allKey = 'smart_game_alltime';
-        const savedScore = window.localStorage.getItem(allKey);
-        this.highscore = savedScore ? parseInt(savedScore, 10) : 0;
-      }
-    }catch(err){ console.warn('Error reading localStorage', err); }
+    // (removed local highscore persistence)
 
     if (typeof document !== 'undefined') {
-    const game = document.getElementById('game-screen');
-    const over = document.getElementById('gameover-screen');
+      const game = document.getElementById('game-screen');
+      const over = document.getElementById('gameover-screen');
 
-    // Spiel sofort anzeigen
-    if (game) game.classList.remove('hidden');
+      // Spiel sofort anzeigen
+      if (game) game.classList.remove('hidden');
 
-    // GameOver weiterhin versteckt
-    if (over) over.classList.add('hidden');
-    this.start();
+      // GameOver weiterhin versteckt
+      if (over) over.classList.add('hidden');
+      this.start();
+    }
+  }
+
+  // Reagiert auf Fenster-Größenänderung
+  @HostListener('window:resize')
+  onResize() {
+    const canvas = this.canvasRef?.nativeElement;
+    if (canvas) {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      GameConfig.canvasWidth = window.innerWidth;
+      GameConfig.canvasHeight = window.innerHeight;
     }
   }
 
@@ -96,50 +115,88 @@ export class GameComponent implements AfterViewInit, OnDestroy {
     this.nextLevelThreshold = this.POINTS_PER_LEVEL;
 
     const canvas = this.canvasRef.nativeElement;
+
+    // Vollbild aktivieren und Config updaten
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    GameConfig.canvasWidth = window.innerWidth;
+    GameConfig.canvasHeight = window.innerHeight;
     
     // BGM Starten
     try {
       if (!this.bgm) {
-        this.bgm = new Audio(GameConfig.bgm);
+        const bgmSrc = (GameConfig as any).bgm || '/assets/sound/background.mp3';
+        this.bgm = new Audio(bgmSrc);
         this.bgm.loop = true;
-        this.bgm.volume = GameConfig.bgmVolume;
+        this.bgm.volume = (GameConfig as any).bgmVolume || 0.25;
       }
-      this.bgm.play().catch((err) => console.warn('BGM play blocked', err));
+
+      // Versuche phát ngay; nếu browser chặn (autoplay policy),
+      // đăng ký một handler để thử phát lại sau tương tác người dùng.
+      this.bgm.play().catch(() => {
+        // Autoplay blocked: silently register one-time resume on first user gesture
+        if (!this._bgmResumeHandler) {
+          this._bgmResumeHandler = (e: Event) => {
+            try {
+              this.bgm?.play().catch(()=>{});
+            } finally {
+              if (this._bgmResumeHandler) {
+                window.removeEventListener('click', this._bgmResumeHandler);
+                window.removeEventListener('keydown', this._bgmResumeHandler);
+                this._bgmResumeHandler = null;
+              }
+            }
+          };
+          window.addEventListener('click', this._bgmResumeHandler);
+          window.addEventListener('keydown', this._bgmResumeHandler);
+        }
+      });
     } catch (err) { console.warn('Error starting BGM', err); }
     
     // --- INIT GAME LOGIC ---
     this.gameInstance = initGame(canvas, {
       
-      // HIER WIRD DER FEHLER BEHOBEN: Wir übergeben pointsPerLevel
       pointsPerLevel: this.POINTS_PER_LEVEL,
 
       onScoreUpdate: (newScore: number) => {
         this.ngZone.run(() => {
           this.score = newScore;
           
-        
           const currentLevel = Math.floor(this.score / this.POINTS_PER_LEVEL) + 1;
           
-          // Wenn das HUD noch alt ist, zwingen wir es auf den neuen Stand:
           if (currentLevel > this.level) {
              console.log("HUD Zwangsuptade auf Level:", currentLevel);
              this.level = currentLevel;
           }
           
-          // Nächstes Ziel berechnen
           this.nextLevelThreshold = this.level * this.POINTS_PER_LEVEL;
-          // ------------------------------
 
-          if (this.score > this.highscore) {
-            this.highscore = this.score;
-          }
         });
       },
+      
+      
       onLivesUpdate: (newLives: number) => {
         this.ngZone.run(() => {
+          
+          if (newLives < this.lives && this.hudComponent) {
+             
+             
+             this.hudComponent.hitIndicator = true;
+
+             
+             setTimeout(() => {
+                if (this.hudComponent) {
+                   this.hudComponent.hitIndicator = false;
+                }
+             }, 300);
+          }
+
           this.lives = newLives;
         });
       },
+      // ----------------------------------------------------
+
       onLevelUpdate: (newLevel: number) => {
         this.ngZone.run(() => {
           this.level = newLevel;
@@ -219,18 +276,19 @@ export class GameComponent implements AfterViewInit, OnDestroy {
     document.getElementById('start-screen')?.classList.remove('hidden'); 
   }
 
-  saveScore(){ 
-    const name = ((document.getElementById('name') as HTMLInputElement)?.value || 'Anon').slice(0,12);
-    const keyAll = 'smart_game_alltime'; 
-    try{ 
-      const all = Number(localStorage.getItem(keyAll) || '0'); 
-      if(this.score > all) localStorage.setItem(keyAll, String(this.score)); 
-      this.highscore = Math.max(this.score, all); 
-    } catch(e){ console.warn('Could not save score', e); }
-    
-    document.getElementById('start-screen')?.classList.remove('hidden');
-    document.getElementById('gameover-screen')?.classList.add('hidden');
-  }
+  saveScore() {
+  const name =
+    (document.getElementById('name') as HTMLInputElement)?.value || 'Anon';
+
+  this.highscoreService
+    .save(name.slice(0, 12), this.score)
+    .subscribe({
+      next: () => {
+        console.log('Score gespeichert');
+      },
+      error: err => console.error(err)
+    });
+ }
 
   onGameOverClean(sc:number){
     if(this.gameInstance && this.gameInstance.destroy){
@@ -242,6 +300,14 @@ export class GameComponent implements AfterViewInit, OnDestroy {
     this.score = sc;
     const final = document.getElementById('final-score');
     if(final) final.textContent = String(sc);
+
+    this.highscoreService.getTopAlltime().subscribe(data => {
+      this.topAlltime = data;
+    });
+
+    this.highscoreService.getTopToday().subscribe(data => {
+      this.topToday = data;
+    });
     
     document.getElementById('game-screen')?.classList.add('hidden');
     document.getElementById('gameover-screen')?.classList.remove('hidden');
@@ -257,16 +323,25 @@ export class GameComponent implements AfterViewInit, OnDestroy {
         this.bgm.currentTime = 0;
       }
     } catch {}
+
+    if (this._bgmResumeHandler) {
+      try {
+        window.removeEventListener('click', this._bgmResumeHandler as EventListener);
+        window.removeEventListener('keydown', this._bgmResumeHandler as EventListener);
+      } catch {}
+      this._bgmResumeHandler = null;
+    }
   }
 
   private playShotSound() {
     try {
       if (!this.shotSfx) {
-        this.shotSfx = new Audio(GameConfig.shotSound);
+        const shotSrc = (GameConfig as any).shotSound || '/assets/sound/shot.mp3';
+        this.shotSfx = new Audio(shotSrc);
         this.shotSfx.preload = 'auto';
       }
       const s = this.shotSfx.cloneNode() as HTMLAudioElement;
-      s.volume = GameConfig.shotSoundVolume;
+      s.volume = (GameConfig as any).shotSoundVolume || 0.9;
 
       s.play().catch(() => {});
     } catch (err) { console.warn('Error playing shot SFX', err); }

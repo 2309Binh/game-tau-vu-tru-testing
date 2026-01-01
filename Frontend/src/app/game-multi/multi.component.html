@@ -1,0 +1,87 @@
+<div class="game-root">
+  
+  <div id="help-screen" class="screen hidden">
+    <h2>How to play</h2>
+    <ul>
+      <li>Move: Arrow Keys or WASD</li>
+      <li>Shoot: Space</li>
+      <li>If anomalies hit bottom, system status drops!</li>
+    </ul>
+    <button id="back-btn" (click)="hideHelp()">Back</button>
+  </div>
+
+  <div id="game-screen" class="screen hidden">
+    
+    <app-hud 
+      [score]="score" 
+      [lives]="lives" 
+      [wave]="level"> 
+    </app-hud>
+
+    <canvas #canvas width="900" height="600"></canvas>
+    
+    <div id="overlay">
+      <div id="pause">Paused</div>
+    </div>
+  </div>
+
+
+<!-- GAME OVER SCREEN (neuer Bereich) -->
+<div id="gameover-screen" class="screen hidden">
+  <div class="gameover-bg">
+
+    <h1 class="gameover-title">GAME OVER</h1>
+
+    <div class="score-box">
+      Your Score:
+      <span id="final-score">0</span>
+    </div>
+
+    <!--  HIGHSCORE BEREICH HIER -->
+    <div class="highscore-layout">
+
+      <!-- LEFT: ALLTIME -->
+      <div class="highscore-box">
+        <h3>🏆 Top 5 Alltime</h3>
+        <ul>
+          <li *ngFor="let h of topAlltime; index as i">
+            {{ i + 1 }}.
+            {{ h.playerName }} –
+            {{ h.score }}
+            <small>{{ h.createdAt | date:'dd.MM' }}</small>
+          </li>
+        </ul>
+      </div>
+
+      <!-- RIGHT: TODAY -->
+      <div class="highscore-box">
+        <h3>📅 Top 5 Today</h3>
+        <ul>
+          <li *ngFor="let h of topToday; index as i">
+            {{ i + 1 }}.
+            {{ h.playerName }} –
+            {{ h.score }}
+            <small>{{ h.createdAt | date:'HH:mm' }}</small>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="buttons">
+
+      <input
+        id="name"
+        type="text"
+        class="name-input"
+        placeholder="Your name"
+        maxlength="12"
+      />
+
+      <button class="save-btn" (click)="saveScore()">Save Score</button>
+      <button class="retry-btn" (click)="start()">Retry</button>
+      <button class="menu-btn" (click)="back()">Back to Menu</button>
+
+    </div>
+
+  </div>
+</div>

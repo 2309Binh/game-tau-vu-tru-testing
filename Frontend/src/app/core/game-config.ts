@@ -5,7 +5,7 @@ export const GameConfig = {
     powerupChance: 0.3, //chance auf Powerup beim Zerstören einer Anomalie
     powerupTypeChance: 0.5, //chance, dass ein Powerup gut ist
     imagesToLoad : {
-      ship: 'assets/picture/playership.png',
+      ship: 'assets/picture/robot.png',
       anomalie: [
         'assets/picture/ano1.png',
         'assets/picture/ano2.png',
@@ -24,8 +24,10 @@ export const GameConfig = {
     shotSoundVolume: 0.9,
     machineDamageAnomalieCollision: 5, //Prozentualer Wert der HP von Anomalie, die der Spieler an Schaden nimmt bei Kollision mit der Maschine
     // Collision tuning for the machine (visual image is scaled when drawn)
-    machineCollisionYOffset: 65, // vertical offset from bottom where machine collision begins
-    machineCollisionHalfWidth: 384, // horizontal half-width of machine collision box
+    machineCollisionYOffset: 150, // vertical offset from bottom where machine collision begins
+    machineCollisionHalfWidth: 600, // horizontal half-width of machine collision box
+    // Visual offset for drawing the machine (pixels above bottom)
+    machineVisualYOffset: 60  ,
   };
   
  

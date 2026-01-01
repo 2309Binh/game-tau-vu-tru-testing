@@ -14,7 +14,6 @@
     
     <app-hud 
       [score]="score" 
-      [highscore]="highscore" 
       [lives]="lives" 
       [wave]="level"> 
     </app-hud>
@@ -28,7 +27,7 @@
 
 
 <!-- GAME OVER SCREEN (neuer Bereich) -->
-<div id="gameover-screen" class="hidden">
+<div id="gameover-screen" class="screen hidden">
   <div class="gameover-bg">
 
     <h1 class="gameover-title">GAME OVER</h1>
@@ -38,9 +37,51 @@
       <span id="final-score">0</span>
     </div>
 
-    <button class="retry-btn" (click)="start()">Retry</button>
-    <button class="menu-btn" (click)="back()">Back to Menu</button>
+    <!--  HIGHSCORE BEREICH HIER -->
+    <div class="highscore-layout">
+
+      <!-- LEFT: ALLTIME -->
+      <div class="highscore-box">
+        <h3>🏆 Top 5 Alltime</h3>
+        <ul>
+          <li *ngFor="let h of topAlltime; index as i">
+            {{ i + 1 }}.
+            {{ h.playerName }} –
+            {{ h.score }}
+            <small>{{ h.createdAt | date:'dd.MM' }}</small>
+          </li>
+        </ul>
+      </div>
+
+      <!-- RIGHT: TODAY -->
+      <div class="highscore-box">
+        <h3>📅 Top 5 Today</h3>
+        <ul>
+          <li *ngFor="let h of topToday; index as i">
+            {{ i + 1 }}.
+            {{ h.playerName }} –
+            {{ h.score }}
+            <small>{{ h.createdAt | date:'HH:mm' }}</small>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="buttons">
+
+      <input
+        id="name"
+        type="text"
+        class="name-input"
+        placeholder="Your name"
+        maxlength="12"
+      />
+
+      <button class="save-btn" (click)="saveScore()">Save Score</button>
+      <button class="retry-btn" (click)="start()">Retry</button>
+      <button class="menu-btn" (click)="back()">Back to Menu</button>
+
+    </div>
 
   </div>
-
 </div>

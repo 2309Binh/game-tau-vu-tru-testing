@@ -1,18 +1,18 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+// replace with the actual exported name from ./GameStart
+import { GameStartComponent } from './GameStart';
 
-import { Test } from './GameStart';
-
-describe('Test', () => {
-  let component: Test;
-  let fixture: ComponentFixture<Test>;
+describe('GameStartComponent', () => {
+  let component: GameStartComponent;
+  let fixture: ComponentFixture<GameStartComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [Test]
+      declarations: [GameStartComponent]
     })
     .compileComponents();
 
-    fixture = TestBed.createComponent(Test);
+    fixture = TestBed.createComponent(GameStartComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });
@@ -20,4 +20,4 @@ describe('Test', () => {
   it('should create', () => {
     expect(component).toBeTruthy();
   });
-});
+}); 

@@ -27,6 +27,45 @@ namespace backend.Controller
             return Ok(highscores);
         }
 
+        // GET: api/highscore/top/alltime
+        [HttpGet("top/alltime")]
+        public async Task<IActionResult> GetTopAlltime()
+        {
+            var scores = await _context.Highscores
+                .OrderByDescending(h => h.Score)
+                .Take(5)
+                .Select(h => new
+                {
+                    h.PlayerName,
+                    h.Score,
+                    h.CreatedAt
+                })
+                .ToListAsync();
+
+            return Ok(scores);
+        }
+
+         // GET: api/highscore/top/today
+        [HttpGet("top/today")]
+        public async Task<IActionResult> GetTopToday()
+        {
+            var today = DateTime.UtcNow.Date;
+
+            var scores = await _context.Highscores
+                .Where(h => h.CreatedAt >= today)
+                .OrderByDescending(h => h.Score)
+                .Take(5)
+                .Select(h => new
+                {
+                    h.PlayerName,
+                    h.Score,
+                    h.CreatedAt
+                })
+                .ToListAsync();
+
+            return Ok(scores);
+        }
+
         // POST: api/highscore
         [HttpPost]
         public async Task<IActionResult> Post([FromBody] Highscore highscore)

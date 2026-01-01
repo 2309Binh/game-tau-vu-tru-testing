@@ -39,16 +39,17 @@ export class Anomalie {
         x,
         y: -50 - (i * 150) - (Math.random() * 50),
         radius: r,
-        speed: 1 + Math.random() * 0.6 + (this.level * 0.15),
+        speed: 1 + Math.random() * 1.6 + (this.level * 0.15),
         hp: r * 2,
-        strength: Math.round(r * 10), //zur zeit nicht gebraucht (glaube ich)
+        strength: Math.round(r * 10), //zur zeit nicht gebraucht 
         scorePoints: 100 + Math.round(this.level * 10) + Math.round(r),
         imageIndex: Math.floor(Math.random() * 7) //Zufälliges Bild für die Anomalie auswählen
       });
     }
 
     this.spawnWaveCount++;
-    if (this.spawnWaveCount % 5 === 0) this.levelUp(player);
+    // Level progression is driven by score (game logic). Do not
+    // change player stats here to avoid unexpected upgrades.
     return anomalien;
   }
 
@@ -95,7 +96,9 @@ export class Anomalie {
   }
 
   
-  private levelUp(player: PlayerModel): void {
+  // Apply a single level-up to the player (public so game logic
+  // can trigger upgrades when score crosses thresholds).
+  public levelUp(player: PlayerModel): void {
     player.level++;
     // Jede zweite Level Weapon-Upgrade
     if (player.level % 2 === 0) {
@@ -154,5 +157,5 @@ export class Anomalie {
         4
       );
     }
-}
+  }
 }

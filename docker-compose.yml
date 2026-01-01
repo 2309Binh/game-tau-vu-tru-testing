@@ -3,7 +3,6 @@ version: '3.9'
 services:
   postgres:
     image: postgres:16
-    container_name: postgres_sld
     restart: always
     environment:
       POSTGRES_USER: gameuser
@@ -18,7 +17,6 @@ services:
   
   pgadmin:
     image: dpage/pgadmin4
-    container_name: pgadmin_sld
     restart: always
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@admin.com
@@ -32,7 +30,6 @@ services:
   
   backend:
     build: ./backend
-    container_name: backend_sld
     restart: always
     environment:
       ASPNETCORE_ENVIRONMENT: Development
@@ -46,7 +43,6 @@ services:
   
   frontend:
     build: ./frontend
-    container_name: frontend_sld
     restart: always
     ports:
       - "4300:80"
@@ -61,3 +57,4 @@ networks:
 
 volumes:
   postgres_data:
+    name: sld_postgres_data

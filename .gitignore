@@ -1,2 +1,6 @@
+@"
+**/bin/
+**/obj/
 node_modules/
 dist/
+"@ | Out-File -Encoding utf8 .gitignore

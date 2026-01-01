@@ -131,14 +131,14 @@ export function initGame(canvas: HTMLCanvasElement, config: GameInitConfig) {
     anomalie.move(player, anomalien.length, anomalien); // Bewegung + Kollisions-Callback (player.takeDamage)
 
     /* -------------------- ANOMALIE OFFSCREEN (HIT BOTTOM) -------------------- */
-    for (let i = anomalien.length - 1; i >= 0; i--) {
+    /*for (let i = anomalien.length - 1; i >= 0; i--) {
       const a = anomalien[i];
       if (a.y > H) {
         player.state.lives -= 1;
         if (config.onLivesUpdate) config.onLivesUpdate(player.state.lives);
         anomalien.splice(i, 1);
       }
-    }
+    }*/
 
     /* -------------------- BULLET - ANOMALIE COLLISION -------------------- */
     let scoreChanged = false;
@@ -158,7 +158,13 @@ export function initGame(canvas: HTMLCanvasElement, config: GameInitConfig) {
             const pts = config.pointsPerLevel || 2500;
             const calculatedLevel = Math.floor(player.state.score / pts) + 1;
             if (calculatedLevel > player.state.level) {
-              player.state.level = calculatedLevel;
+              const diff = calculatedLevel - player.state.level;
+              // Apply upgrades per level using the anomalie helper so
+              // weapon/speed changes happen only when score actually
+              // causes level increases.
+              for (let k = 0; k < diff; k++) {
+                anomalie.levelUp(player.state);
+              }
               if (config.onLevelUpdate) config.onLevelUpdate(player.state.level);
             }
 
@@ -207,7 +213,7 @@ function render() {
   ctx.fillStyle = '#050513'; //background design
   ctx.fillRect(0, 0, W, H);
 
-  drawMachine(W / 2, H - 50); //Maschine zeichnen
+  drawMachine(W / 2, H - (GameConfig.machineVisualYOffset ?? 80)); //Maschine zeichnen (visual offset configurable)
 
   player.drawPlayer(player.state.position.x, player.state.position.y, images, ctx); //player zeichnen
 
@@ -228,7 +234,7 @@ function render() {
 function drawMachine(x: number, y: number) {
   ctx.save();
   ctx.translate(x, y);
-  ctx.scale(8, 7);
+  ctx.scale(13, 7);
 
   const img = images.maschine;
   if (img) {

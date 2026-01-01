@@ -16,8 +16,8 @@ export class Player {
         x: GameConfig.canvasWidth / 2,
         y: GameConfig.canvasHeight - 80,
       },
-      speed: 4,
-      damage: 10,
+      speed: 5,
+      damage: 5,
       score: 0,
       level: 1,
       levelWeapon: 1,
@@ -60,8 +60,8 @@ export class Player {
     const img = images.ship;
   
     if (img) {
-      const drawW = 48;
-      const drawH = 48;
+      const drawW = 68;
+      const drawH = 68;
   
       ctx.imageSmoothingEnabled = false;
       ctx.drawImage(img, x - drawW / 2, y - drawH / 2, drawW, drawH);

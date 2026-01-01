@@ -23,6 +23,8 @@ export class Powerup {
     if (this.powerup.type === "good") {
       player.score += 200;
       player.levelWeapon = Math.min(5, player.levelWeapon + 1);
+      player.speed = Math.min(15, player.speed + 0.6);
+      console.log("Powerup applied: Weapon level increased to " + player.levelWeapon + ", speed increased to " + player.speed);
     } else {
       player.score = Math.max(0, player.score - 150);
       player.speed = Math.max(2, player.speed - 0.6);

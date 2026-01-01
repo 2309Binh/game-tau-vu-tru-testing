@@ -1,19 +1,65 @@
-<div class="game-bg">
+<div class="screen-container">
+  <div class="stars"></div>
 
-  <div class="title-container">
-    <h1 class="title">SMART LIMIT</h1>
-    <h1 class="title">DEFENDER</h1>
+  <div class="title-wrapper">
+    <div class="pixel-line"></div>
+
+    <h1 class="title">
+      <div>SMART</div>
+      <div>LIMIT</div>
+      <div>DEFENDER</div>
+    </h1>
+
+    <div class="pixel-line"></div>
   </div>
 
-  <button class="start-btn" (click)="startGame()">
-    START
-  </button>
+  <div class="menu-buttons">
+    <button class="pixel-btn start-btn" (click)="onStart()">START</button>
 
-  <div class="menu-links">
-    <button class="menu-btn" (click)="openHighscores()">Highscores</button>
-    <button class="menu-btn" (click)="openAnleitung()">Anleitung</button>
+    <div *ngIf="showModeSelection" class="mode-overlay">
+      <div class="mode-card">
+        <button class="pixel-btn mode-btn" (click)="selectSingle()">SINGLE PLAY</button>
+        <button class="pixel-btn mode-btn" (click)="selectMulti()">MULTI PLAY</button>
+        <button class="pixel-btn cancel-btn" (click)="showModeSelection = false">CANCEL</button>
+      </div>
+    </div>
+
+    <div class="bottom-row">
+      <button class="pixel-btn" (click)="onHighscores()">HIGHSCORES</button>
+      <button class="pixel-btn" (click)="onAnleitung()">ANLEITUNG</button>
+    </div>
+  </div>
+  <!-- 🔽 HIGHSCORES STARTSCREEN 🔽 -->
+<div class="start-highscores">
+  <div class="pixel-line hs-line"></div>
+
+  <div class="hs-grid">
+    <div class="hs-box">
+      <h3 class="hs-title">🏆 TOP 5 ALLTIME</h3>
+      <ul>
+        <li *ngFor="let h of topAlltime; index as i">
+          <span class="hs-rank">{{ i + 1 }}.</span>
+          <span class="hs-name">{{ h.playerName }}</span>
+          <span class="hs-score">{{ h.score }}</span>
+          <small class="hs-date">{{ h.createdAt | date:'dd.MM' }}</small>
+        </li>
+      </ul>
+    </div>
+
+    <div class="hs-box">
+      <h3 class="hs-title">📅 TOP 5 TODAY</h3>
+      <ul>
+        <li *ngFor="let h of topToday; index as i">
+          <span class="hs-rank">{{ i + 1 }}.</span>
+          <span class="hs-name">{{ h.playerName }}</span>
+          <span class="hs-score">{{ h.score }}</span>
+          <small class="hs-date">{{ h.createdAt | date:'HH:mm' }}</small>
+        </li>
+      </ul>
+    </div>
   </div>
 
-  <img src="assets/picture/robot.png" class="robot" alt="robot">
+  <div class="pixel-line hs-line"></div>
+</div>
 
 </div>
