@@ -51,8 +51,7 @@ export class GameComponent implements AfterViewInit, OnDestroy {
 
   private readonly ARCADE = {
     DEADZONE: 0.3,
-    SHOOT: 4,
-    ALT_SHOOT: 8,
+    SHOOT: 3,
     START: 9
   };
 
@@ -210,8 +209,7 @@ export class GameComponent implements AfterViewInit, OnDestroy {
         map.up    = gp.axes[1] < -dz;
         map.down  = gp.axes[1] >  dz;
 
-        if (gp.buttons[this.ARCADE.SHOOT]?.pressed ||
-            gp.buttons[this.ARCADE.ALT_SHOOT]?.pressed) {
+        if (gp.buttons[this.ARCADE.SHOOT]?.pressed) {
           map.shootOnce = true;
           this.playShotSound();
         }
