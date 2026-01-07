@@ -15,8 +15,25 @@
     <app-hud 
       [score]="score" 
       [lives]="lives" 
-      [wave]="level"> 
+      [wave]="level"
+      [scoreL]="scoreL"
+      [scoreR]="scoreR"
+      [waveL]="levelL"
+      [waveR]="levelR"
+      [multiplayer]="true"> 
     </app-hud>
+
+    <!-- Machine HP indicators (left / right) -->
+    <div class="machine-hp left">
+      <div class="label">Machine </div>
+      <div class="bar"><div class="fill" [style.width.%]="(machineHPL / (GameConfigRef.machineHP || 100)) * 100"></div></div>
+      <div class="val">{{ machineHPL }}</div>
+    </div>
+    <div class="machine-hp right">
+      <div class="label">Machine </div>
+      <div class="bar"><div class="fill" [style.width.%]="(machineHPR / (GameConfigRef.machineHP || 100)) * 100"></div></div>
+      <div class="val">{{ machineHPR }}</div>
+    </div>
 
     <canvas #canvas width="900" height="600"></canvas>
     

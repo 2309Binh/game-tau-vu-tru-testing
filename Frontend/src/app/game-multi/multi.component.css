@@ -242,3 +242,23 @@ button.ghost {
     align-items: center;
   }
 }
+
+/* Machine HP HUD */
+.machine-hp {
+  position: absolute;
+  top: 52px;
+  width: 180px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #fff;
+  font-size: 13px;
+  z-index: 25;
+  pointer-events: none;
+}
+.machine-hp.left { left: 12px; }
+.machine-hp.right { right: 12px; }
+.machine-hp .label { width: 64px; color: #cbd5e1; }
+.machine-hp .bar { background: rgba(255,255,255,0.08); height: 12px; width: 100px; border-radius: 6px; overflow: hidden; }
+.machine-hp .bar .fill { height: 100%; background: linear-gradient(90deg,#EF7D00); width: 100%; }
+.machine-hp .val { width: 28px; text-align: right; color: #fff; }

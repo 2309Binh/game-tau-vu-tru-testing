@@ -7,6 +7,6 @@ import { GameMultiComponent } from './game-multi/multi.component';
 export const routes: Routes = [
   { path: '', component: GameStartComponent, title: 'Start' },
   { path: 'game', component: GameComponent, title: 'Game' },
-  { path: 'game-multi', component: GameMultiComponent, title: 'Multiplayer' },
+  { path: 'game-multi', component: GameMultiComponent, title: 'Game Multi' },
   { path: 'highscore', component: HighscoreComponent, title: 'Highscore' }
 ];

@@ -13,6 +13,14 @@ export class HudComponent {
   @Input() wave: number = 1;
   @Input() lives: number = 100;
 
+  // Optional: two-player inputs (when used in split-screen)
+  @Input() scoreL?: number;
+  @Input() scoreR?: number;
+  @Input() waveL?: number;
+  @Input() waveR?: number;
+  // When true, hide system-status related UI (used for multiplayer split-screen)
+  @Input() multiplayer: boolean = false;
+
   hitIndicator: boolean = false;
 
   getConfidenceClass(): string {

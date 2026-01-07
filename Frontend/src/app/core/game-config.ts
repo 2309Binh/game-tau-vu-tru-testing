@@ -28,6 +28,8 @@ export const GameConfig = {
     machineCollisionHalfWidth: 600, // horizontal half-width of machine collision box
     // Visual offset for drawing the machine (pixels above bottom)
     machineVisualYOffset: 60  ,
+    // HP for each machine in multiplayer
+    machineHP: 100,
   };
   
  

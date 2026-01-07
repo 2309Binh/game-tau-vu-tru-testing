@@ -9,7 +9,16 @@ export interface GameInitConfig {
   onScoreUpdate?: (score: number) => void;
   onLivesUpdate?: (lives: number) => void;
   onLevelUpdate?: (level: number) => void;
+  // split-screen callbacks
+  onScoreUpdateLeft?: (score: number) => void;
+  onScoreUpdateRight?: (score: number) => void;
+  onLevelUpdateLeft?: (level: number) => void;
+  onLevelUpdateRight?: (level: number) => void;
+  // callbacks for shooting (used to trigger SFX in the host component)
+  onShootLeft?: () => void;
+  onShootRight?: () => void;
   onGameOver?: (score: number) => void;
+  onMachineHPUpdate?: (leftHP: number, rightHP: number) => void;
   
   pointsPerLevel: number;
 
@@ -27,6 +36,10 @@ export function initGame(canvas: HTMLCanvasElement, config: GameInitConfig) {
 
   // split-screen: left and right
   const halfW = Math.floor(W / 2);
+
+  // Machine HP per side (separate from player lives). Initialized from config or default.
+  let machineHPL = (GameConfig.machineHP ?? 100);
+  let machineHPR = (GameConfig.machineHP ?? 100);
 
   const playerL = new Player();
   const playerR = new Player();
@@ -46,6 +59,8 @@ export function initGame(canvas: HTMLCanvasElement, config: GameInitConfig) {
   let anomalienR: AnomalieModel[] = [];
   let powerupsL: Powerup[] = [];
   let powerupsR: Powerup[] = [];
+
+  // (removed kills tracking) machine damage no longer scales by kill share
 
   let fireCooldownL = 0;
   let fireCooldownR = 0;
@@ -146,6 +161,7 @@ export function initGame(canvas: HTMLCanvasElement, config: GameInitConfig) {
     if (inputL.shootOnce) {
       if (fireCooldownL <= 0) {
         Bullet.fireBullet(bulletsL, playerL.state);
+        try { config.onShootLeft?.(); } catch {}
         fireCooldownL = Math.max(6 - playerL.state.levelWeapon, 2);
       }
       inputL.shootOnce = false;
@@ -177,8 +193,15 @@ export function initGame(canvas: HTMLCanvasElement, config: GameInitConfig) {
       const machineCollisionHalfWidth = (GameConfig.machineCollisionHalfWidth ?? 384) / 2; // scaled for half
       const machineCollisionTopY = H - (GameConfig.machineCollisionYOffset ?? 65);
       if (a.y + a.radius >= machineCollisionTopY && Math.abs(a.x - machineCenterX) < machineCollisionHalfWidth) {
-        const dmg = Math.max(1, Math.round((GameConfig.machineDamageAnomalieCollision / 100) * a.hp));
-        playerL.takeDamage(dmg);
+        const baseDmg = Math.max(1, Math.round((GameConfig.machineDamageAnomalieCollision / 100) * a.hp));
+        // apply damage to left machine HP (separate from player lives)
+        machineHPL = Math.max(0, machineHPL - baseDmg);
+        // notify host about machine HP change
+        try { config.onMachineHPUpdate?.(machineHPL, machineHPR); } catch {}
+        // if machine destroyed, kill the player's lives to trigger game over for that side
+        if (machineHPL <= 0) {
+          playerL.state.lives = 0;
+        }
         anomalienL.splice(i, 1);
         continue;
       }
@@ -194,7 +217,7 @@ export function initGame(canvas: HTMLCanvasElement, config: GameInitConfig) {
         if (dist(b.x, b.y, a.x, a.y) < a.radius + 2) {
           bulletsL.splice(j, 1);
           a.hp -= b.damage;
-          if (a.hp <= 0) {
+              if (a.hp <= 0) {
             playerL.state.score += a.scorePoints;
             scoreChangedL = true;
             const pts = config.pointsPerLevel || 2500;
@@ -202,7 +225,8 @@ export function initGame(canvas: HTMLCanvasElement, config: GameInitConfig) {
             if (calculatedLevel > playerL.state.level) {
               const diff = calculatedLevel - playerL.state.level;
               for (let k = 0; k < diff; k++) anomalieHelperL.levelUp(playerL.state);
-              if (config.onLevelUpdate) config.onLevelUpdate(playerL.state.level);
+                      if (config.onLevelUpdate) config.onLevelUpdate(playerL.state.level);
+                      if (config.onLevelUpdateLeft) config.onLevelUpdateLeft(playerL.state.level);
             }
             if (Math.random() < (GameConfig.powerupChance ?? 0.18)) powerupsL.push(new Powerup(a));
             anomalienL.splice(i, 1);
@@ -213,6 +237,7 @@ export function initGame(canvas: HTMLCanvasElement, config: GameInitConfig) {
     }
 
     if (scoreChangedL && config.onScoreUpdate) config.onScoreUpdate(playerL.state.score);
+    if (scoreChangedL && config.onScoreUpdateLeft) config.onScoreUpdateLeft(playerL.state.score);
 
     for (let i = powerupsL.length - 1; i >= 0; i--) {
       const p = powerupsL[i];
@@ -222,6 +247,7 @@ export function initGame(canvas: HTMLCanvasElement, config: GameInitConfig) {
         powerupsL.splice(i, 1);
         if (config.onLivesUpdate) config.onLivesUpdate(playerL.state.lives);
         if (config.onScoreUpdate) config.onScoreUpdate(playerL.state.score);
+        if (config.onScoreUpdateLeft) config.onScoreUpdateLeft(playerL.state.score);
       } else if (p.state.y > H + 30) powerupsL.splice(i, 1);
     }
 
@@ -234,6 +260,7 @@ export function initGame(canvas: HTMLCanvasElement, config: GameInitConfig) {
     if (inputR.shootOnce) {
       if (fireCooldownR <= 0) {
         Bullet.fireBullet(bulletsR, playerR.state);
+        try { config.onShootRight?.(); } catch {}
         fireCooldownR = Math.max(6 - playerR.state.levelWeapon, 2);
       }
       inputR.shootOnce = false;
@@ -264,8 +291,13 @@ export function initGame(canvas: HTMLCanvasElement, config: GameInitConfig) {
       const machineCollisionHalfWidth = (GameConfig.machineCollisionHalfWidth ?? 384) / 2;
       const machineCollisionTopY = H - (GameConfig.machineCollisionYOffset ?? 65);
       if (a.y + a.radius >= machineCollisionTopY && Math.abs(a.x - machineCenterX) < machineCollisionHalfWidth) {
-        const dmg = Math.max(1, Math.round((GameConfig.machineDamageAnomalieCollision / 100) * a.hp));
-        playerR.takeDamage(dmg);
+        const baseDmg = Math.max(1, Math.round((GameConfig.machineDamageAnomalieCollision / 100) * a.hp));
+        // apply damage to right machine HP
+        machineHPR = Math.max(0, machineHPR - baseDmg);
+        try { config.onMachineHPUpdate?.(machineHPL, machineHPR); } catch {}
+        if (machineHPR <= 0) {
+          playerR.state.lives = 0;
+        }
         anomalienR.splice(i, 1);
         continue;
       }
@@ -280,7 +312,7 @@ export function initGame(canvas: HTMLCanvasElement, config: GameInitConfig) {
         if (dist(b.x, b.y, a.x, a.y) < a.radius + 2) {
           bulletsR.splice(j, 1);
           a.hp -= b.damage;
-          if (a.hp <= 0) {
+            if (a.hp <= 0) {
             playerR.state.score += a.scorePoints;
             scoreChangedR = true;
             const pts = config.pointsPerLevel || 2500;
@@ -289,6 +321,7 @@ export function initGame(canvas: HTMLCanvasElement, config: GameInitConfig) {
               const diff = calculatedLevel - playerR.state.level;
               for (let k = 0; k < diff; k++) anomalieHelperR.levelUp(playerR.state);
               if (config.onLevelUpdate) config.onLevelUpdate(playerR.state.level);
+              if (config.onLevelUpdateRight) config.onLevelUpdateRight(playerR.state.level);
             }
             if (Math.random() < (GameConfig.powerupChance ?? 0.18)) powerupsR.push(new Powerup(a));
             anomalienR.splice(i, 1);
@@ -298,8 +331,8 @@ export function initGame(canvas: HTMLCanvasElement, config: GameInitConfig) {
       }
     }
 
-    // note: keep using config.onScoreUpdate for left player (HUD remains single-player style)
-    if (scoreChangedR) { /* could notify separately if HUD updated for both */ }
+    // notify right-player score update
+    if (scoreChangedR && config.onScoreUpdateRight) config.onScoreUpdateRight(playerR.state.score);
 
     for (let i = powerupsR.length - 1; i >= 0; i--) {
       const p = powerupsR[i];
@@ -309,6 +342,7 @@ export function initGame(canvas: HTMLCanvasElement, config: GameInitConfig) {
         powerupsR.splice(i, 1);
         if (config.onLivesUpdate) config.onLivesUpdate(playerR.state.lives);
         if (config.onScoreUpdate) config.onScoreUpdate(playerR.state.score);
+        if (config.onScoreUpdateRight) config.onScoreUpdateRight(playerR.state.score);
       } else if (p.state.y > H + 30) powerupsR.splice(i, 1);
     }
 

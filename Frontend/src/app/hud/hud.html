@@ -5,23 +5,44 @@
       <span class="brand-orange">ifm</span> <span class="brand-white">statmath</span>
     </div>
     <div class="stats-section">
-      <div class="stat-box">
-        <span class="stat-label">SCORE</span>
-        <span class="stat-value">{{ score }}</span>
-      </div>
-      <!-- highscore removed -->
-      <div class="stat-box">
-        <span class="stat-label">LEVEL</span>
-        <span class="stat-value">0{{ wave }}</span>
-      </div>
+        <!-- If two-player data provided, show both players -->
+        <ng-container *ngIf="scoreR != null || waveR != null; else singlePlayer">
+          <div class="stat-box">
+            <span class="stat-label">P1 SCORE</span>
+            <span class="stat-value">{{ scoreL ?? score }}</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">P1 LEVEL</span>
+            <span class="stat-value">0{{ waveL ?? wave }}</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">P2 SCORE</span>
+            <span class="stat-value">{{ scoreR }}</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">P2 LEVEL</span>
+            <span class="stat-value">0{{ waveR }}</span>
+          </div>
+        </ng-container>
+        <ng-template #singlePlayer>
+          <div class="stat-box">
+            <span class="stat-label">SCORE</span>
+            <span class="stat-value">{{ score }}</span>
+          </div>
+          <!-- highscore removed -->
+          <div class="stat-box">
+            <span class="stat-label">LEVEL</span>
+            <span class="stat-value">0{{ wave }}</span>
+          </div>
+        </ng-template>
     </div>
   </div>
 
-  <div class="damage-indicator-container">
+  <div *ngIf="!multiplayer" class="damage-indicator-container">
     <div class="confidence-band" [ngClass]="getConfidenceClass()"></div>
   </div>
 
-  <div class="bottom-bar">
+  <div *ngIf="!multiplayer" class="bottom-bar">
     <div class="status-panel">
       <span class="status-label">SYSTEM STATUS:</span>
 

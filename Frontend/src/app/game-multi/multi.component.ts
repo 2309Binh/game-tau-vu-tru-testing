@@ -31,6 +31,14 @@ export class GameMultiComponent implements AfterViewInit, OnDestroy {
   lives = 100; 
   level = 1;
   highscore = 0;
+  // split-screen stats
+  scoreL = 0;
+  scoreR = 0;
+  levelL = 1;
+  levelR = 1;
+  // Machine HP (left / right)
+  machineHPL = (GameConfig.machineHP ?? 100);
+  machineHPR = (GameConfig.machineHP ?? 100);
 
   // --- HIGHSCORE LISTEN ---
   topAlltime: HighscoreDto[] = [];
@@ -50,6 +58,9 @@ export class GameMultiComponent implements AfterViewInit, OnDestroy {
   private _bgmResumeHandler: EventListener | null = null;
 
   constructor(private router: Router, private ngZone: NgZone, private highscoreService: HighscoreService ) {}
+
+  // expose GameConfig to template
+  GameConfigRef = GameConfig;
 
   ngAfterViewInit(): void {
     // Canvas Größe - Initialer Check
@@ -158,6 +169,12 @@ export class GameMultiComponent implements AfterViewInit, OnDestroy {
     this.gameInstance = initGame(canvas, {
       
       pointsPerLevel: this.POINTS_PER_LEVEL,
+      onMachineHPUpdate: (l: number, r: number) => {
+        this.ngZone.run(() => {
+          this.machineHPL = l;
+          this.machineHPR = r;
+        });
+      },
 
       onScoreUpdate: (newScore: number) => {
         this.ngZone.run(() => {
@@ -173,6 +190,28 @@ export class GameMultiComponent implements AfterViewInit, OnDestroy {
           this.nextLevelThreshold = this.level * this.POINTS_PER_LEVEL;
 
         });
+      },
+      onScoreUpdateLeft: (newScore: number) => {
+        this.ngZone.run(() => {
+          this.scoreL = newScore;
+          // keep primary score in HUD pointing to left player for compatibility
+          this.score = newScore;
+          const currentLevel = Math.floor(this.scoreL / this.POINTS_PER_LEVEL) + 1;
+          if (currentLevel > this.levelL) this.levelL = currentLevel;
+        });
+      },
+      onScoreUpdateRight: (newScore: number) => {
+        this.ngZone.run(() => {
+          this.scoreR = newScore;
+          const currentLevel = Math.floor(this.scoreR / this.POINTS_PER_LEVEL) + 1;
+          if (currentLevel > this.levelR) this.levelR = currentLevel;
+        });
+      },
+      onShootLeft: () => {
+        this.ngZone.run(() => { this.playShotSound(); });
+      },
+      onShootRight: () => {
+        this.ngZone.run(() => { this.playShotSound(); });
       },
       
       
@@ -202,6 +241,12 @@ export class GameMultiComponent implements AfterViewInit, OnDestroy {
           this.level = newLevel;
           this.nextLevelThreshold = this.level * this.POINTS_PER_LEVEL;
         });
+      },
+      onLevelUpdateLeft: (newLevel: number) => {
+        this.ngZone.run(() => { this.levelL = newLevel; });
+      },
+      onLevelUpdateRight: (newLevel: number) => {
+        this.ngZone.run(() => { this.levelR = newLevel; });
       },
       onGameOver: (score: number) => {
         this.ngZone.run(() => {
