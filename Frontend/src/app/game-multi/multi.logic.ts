@@ -6,476 +6,278 @@ import { Bullet } from "../entities/bullet";
 import { GameConfig } from "../core/game-config";
 
 export interface GameInitConfig {
-  onScoreUpdate?: (score: number) => void;
-  onLivesUpdate?: (lives: number) => void;
-  onLevelUpdate?: (level: number) => void;
-  // split-screen callbacks
   onScoreUpdateLeft?: (score: number) => void;
   onScoreUpdateRight?: (score: number) => void;
   onLevelUpdateLeft?: (level: number) => void;
   onLevelUpdateRight?: (level: number) => void;
-  // callbacks for shooting (used to trigger SFX in the host component)
-  onShootLeft?: () => void;
-  onShootRight?: () => void;
-  onGameOver?: (score: number) => void;
+  onLivesUpdateLeft?: (lives: number) => void;
+  onLivesUpdateRight?: (lives: number) => void;
   onMachineHPUpdate?: (leftHP: number, rightHP: number) => void;
-  
+  onShot?: (player: 'left' | 'right') => void;
+  onGameOver?: (score: number) => void;
   pointsPerLevel: number;
+}
 
-  hudScore?: HTMLElement | null;
-  hudLives?: HTMLElement | null;
-  hudLevel?: HTMLElement | null;
+function checkCollision(r1: any, r2: any): boolean {
+  return (
+    r1.x < r2.x + r2.w && r1.x + r1.w > r2.x &&
+    r1.y < r2.y + r2.h && r1.y + r1.h > r2.y
+  );
 }
 
 export function initGame(canvas: HTMLCanvasElement, config: GameInitConfig) {
   const ctx = canvas.getContext('2d')!;
-  const W = canvas.width, H = canvas.height;
+  
+  // 1. ZWANGS-UPDATE DER GRÖSSE VOR ALLEM ANDEREN
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  
+  let W = window.innerWidth;
+  let H = window.innerHeight;
+  let halfW = Math.floor(W / 2);
 
   let raf = 0;
   let running = true;
 
-  // split-screen: left and right
-  const halfW = Math.floor(W / 2);
-
-  // Machine HP per side (separate from player lives). Initialized from config or default.
-  let machineHPL = (GameConfig.machineHP ?? 100);
-  let machineHPR = (GameConfig.machineHP ?? 100);
-
+  // --- SETUP ---
   const playerL = new Player();
   const playerR = new Player();
-
-  // position players roughly centered in each half
-  playerL.state.position.x = halfW / 2;
+  
+  // 2. SPAWN POSITIONS FIX
+  // Wir setzen sie direkt relativ zur Fensterbreite
+  playerL.state.position.x = W * 0.25; // 25% der Breite (Mitte Links)
   playerL.state.position.y = H - 140;
-  playerR.state.position.x = halfW + halfW / 2;
+  
+  playerR.state.position.x = W * 0.75; // 75% der Breite (Mitte Rechts)
   playerR.state.position.y = H - 140;
 
-  const anomalieHelperL = new Anomalie();
-  const anomalieHelperR = new Anomalie();
+  let machineHPL = 100, machineHPR = 100;
+  let blinkL_Player = 0, blinkL_Machine = 0;
+  let blinkR_Player = 0, blinkR_Machine = 0;
 
-  let bulletsL: BulletModel[] = [];
-  let bulletsR: BulletModel[] = [];
-  let anomalienL: AnomalieModel[] = [];
-  let anomalienR: AnomalieModel[] = [];
-  let powerupsL: Powerup[] = [];
-  let powerupsR: Powerup[] = [];
-
-  // (removed kills tracking) machine damage no longer scales by kill share
-
-  let fireCooldownL = 0;
-  let fireCooldownR = 0;
-
-  // INPUT
-  // separate inputs for left and right players
+  let bulletsL: BulletModel[] = [], bulletsR: BulletModel[] = [];
+  let anomalienL: AnomalieModel[] = [], anomalienR: AnomalieModel[] = [];
+  
+  const anomalieHelper = new Anomalie();
+  let fireCooldownL = 0, fireCooldownR = 0;
   const inputL: InputState = { left: false, right: false, up: false, down: false, shootOnce: false };
   const inputR: InputState = { left: false, right: false, up: false, down: false, shootOnce: false };
 
+  // --- CONTROLS ---
   const keyDownListener = (e: KeyboardEvent) => {
-    const k = e.key;
-    // Left player: WASD + Space
-    if (k === 'a' || k === 'A') { inputL.left = true; e.preventDefault(); }
-    if (k === 'd' || k === 'D') { inputL.right = true; e.preventDefault(); }
-    if (k === 'w' || k === 'W') { inputL.up = true; e.preventDefault(); }
-    if (k === 's' || k === 'S') { inputL.down = true; e.preventDefault(); }
-    if (k === ' '){ inputL.shootOnce = true; e.preventDefault(); }
-
-    // Right player: Arrow keys + Enter to shoot
-    if (k === 'ArrowLeft') { inputR.left = true; e.preventDefault(); }
-    if (k === 'ArrowRight') { inputR.right = true; e.preventDefault(); }
-    if (k === 'ArrowUp') { inputR.up = true; e.preventDefault(); }
-    if (k === 'ArrowDown') { inputR.down = true; e.preventDefault(); }
-    if (k === 'Enter') { inputR.shootOnce = true; e.preventDefault(); }
+    const k = e.key.toLowerCase();
+    // P1 (WASD)
+    if (k === 'a') inputL.left = true;
+    if (k === 'd') inputL.right = true;
+    if (k === 'w') inputL.up = true;
+    if (k === 's') inputL.down = true;
+    if (k === ' ') inputL.shootOnce = true;
+    
+    // P2 (Pfeiltasten)
+    if (e.key === 'ArrowLeft') inputR.left = true;
+    if (e.key === 'ArrowRight') inputR.right = true;
+    if (e.key === 'ArrowUp') inputR.up = true;
+    if (e.key === 'ArrowDown') inputR.down = true;
+    if (e.key === 'Enter') inputR.shootOnce = true;
   };
   const keyUpListener = (e: KeyboardEvent) => {
-    const k = e.key;
-    if (k === 'a' || k === 'A') inputL.left = false;
-    if (k === 'd' || k === 'D') inputL.right = false;
-    if (k === 'w' || k === 'W') inputL.up = false;
-    if (k === 's' || k === 'S') inputL.down = false;
+    const k = e.key.toLowerCase();
+    if (k === 'a') inputL.left = false;
+    if (k === 'd') inputL.right = false;
+    if (k === 'w') inputL.up = false;
+    if (k === 's') inputL.down = false;
     if (k === ' ') inputL.shootOnce = false;
-
-    if (k === 'ArrowLeft') inputR.left = false;
-    if (k === 'ArrowRight') inputR.right = false;
-    if (k === 'ArrowUp') inputR.up = false;
-    if (k === 'ArrowDown') inputR.down = false;
-    if (k === 'Enter') inputR.shootOnce = false;
+    
+    if (e.key === 'ArrowLeft') inputR.left = false;
+    if (e.key === 'ArrowRight') inputR.right = false;
+    if (e.key === 'ArrowUp') inputR.up = false;
+    if (e.key === 'ArrowDown') inputR.down = false;
+    if (e.key === 'Enter') inputR.shootOnce = false;
   };
-  if (typeof window !== 'undefined') {
+  if(typeof window !== 'undefined') {
     window.addEventListener('keydown', keyDownListener);
     window.addEventListener('keyup', keyUpListener);
   }
-  
-  //-----------------Image Preloading--------------------
 
-  const images: { 
-    ship: HTMLImageElement | null; 
-    anomalie: HTMLImageElement[]; 
-    maschine: HTMLImageElement | null 
-  } = { ship: null, anomalie: [], maschine: null };
-  
+  // --- IMAGES ---
+  const images: any = { ship: null, anomalie: [], maschine: null };
   function loadImage(src: string): Promise<HTMLImageElement> {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const img = new Image();
       img.onload = () => resolve(img);
       img.onerror = () => resolve(img);
       img.src = src;
     });
   }
-  
   async function preloadImages() {
     const entries = Object.entries(GameConfig.imagesToLoad);
-  
     for (const [key, value] of entries) {
       try {
         if (Array.isArray(value)) {
-          // mehrere Bilder parallel laden
-          const loadedImages = await Promise.all(value.map(loadImage));
-          (images as any)[key] = loadedImages;
+          images[key] = await Promise.all(value.map(loadImage));
         } else {
-          // einzelnes Bild
-          const img = await loadImage(value as string);
-          (images as any)[key] = img;
+          images[key] = await loadImage(value as string);
         }
-      } catch (e) {
-        console.warn("Failed to load image(s)", value, e);
-        (images as any)[key] = Array.isArray(value) ? [] : null;
-      }
+      } catch (e) {}
     }
   }
 
- /* -------------------- Berechnet entfernung zwischen zwei punkten -------------------- */
-
-
-    
-    function dist(ax: number, ay: number, bx: number, by: number) {
-      const dx = ax - bx;
-      const dy = ay - by;
-      return Math.sqrt(dx * dx + dy * dy);
-    }
-    
+  // --- STEP ---
   function step() {
-    // LEFT
-    const livesBeforeL = playerL.state.lives;
-    playerL.move(inputL);
-    if (fireCooldownL > 0) fireCooldownL -= 1;
-    if (inputL.shootOnce) {
-      if (fireCooldownL <= 0) {
-        Bullet.fireBullet(bulletsL, playerL.state);
-        try { config.onShootLeft?.(); } catch {}
-        fireCooldownL = Math.max(6 - playerL.state.levelWeapon, 2);
-      }
-      inputL.shootOnce = false;
-    }
-    for (let i = bulletsL.length - 1; i >= 0; i--) {
-      const b = bulletsL[i];
-      b.y -= b.speed;
-      if (b.y < -10) bulletsL.splice(i, 1);
+    // 3. AUTO-RESIZE: Verhindert unsichtbare Wände bei Größenänderung
+    if (window.innerWidth !== W || window.innerHeight !== H) {
+        W = window.innerWidth;
+        H = window.innerHeight;
+        canvas.width = W;
+        canvas.height = H;
+        halfW = Math.floor(W / 2);
     }
 
-    // spawn left side anomalies
-    if (anomalienL.length === 0 || (Date.now() - (anomalieHelperL as any).lastWaveAt > 1200 && anomalienL.length < Math.max(1, 3 + Math.floor((anomalieHelperL as any).currentLevel / 2)))) {
-      const lvl = (anomalieHelperL as any).currentLevel || 1;
-      const count = 2 + Math.floor(lvl * 0.8) + Math.floor(Math.random() * 2);
-      for (let i = 0; i < count; i++) {
-        const r = 12 + Math.floor(Math.random() * 18) + lvl * 2;
-        const x = Math.random() * (halfW - 80) + 40;
-        anomalienL.push({ x, y: -50 - (i * 150) - (Math.random() * 50), radius: r, speed: 1 + Math.random() * 1.6 + (lvl * 0.15), hp: r * 2, strength: Math.round(r * 10), scorePoints: 100 + Math.round(lvl * 10) + Math.round(r), imageIndex: Math.floor(Math.random() * 7) });
-      }
-      try { (anomalieHelperL as any).lastWaveAt = Date.now(); } catch {}
-    }
+    // --- P1 (LINKS) ---
+    playerL.move(inputL,W, H);
+    // Boundary P1: 0 bis Mitte minus Spielerbreite
+    if (playerL.state.position.x < 0) playerL.state.position.x = 0;
+    if (playerL.state.position.x > halfW - 40) playerL.state.position.x = halfW - 40;
 
-    // move left anomalies
+    if(fireCooldownL > 0) fireCooldownL--;
+    if(inputL.shootOnce && fireCooldownL <= 0) { 
+      Bullet.fireBullet(bulletsL, playerL.state); 
+      fireCooldownL = 5; 
+      inputL.shootOnce = false; 
+      if(config.onShot) config.onShot('left');
+    }
+    for(let i=bulletsL.length-1; i>=0; i--) { 
+        bulletsL[i].y -= bulletsL[i].speed; 
+        if(bulletsL[i].y < -20) bulletsL.splice(i,1); 
+    }
+    
+    anomalieHelper.updateSpawn(playerL.state, anomalienL.length, images, ctx, anomalienL);
+    for(const a of anomalienL) { a.y += a.speed; if(a.x > halfW - a.radius) a.x = halfW - a.radius; }
+    
+    // HITBOX P1 (Groß)
+    const machineRectL = { x: (halfW/2) - 150, y: H - 180, w: 300, h: 180 }; 
+    const playerRectL = { x: playerL.state.position.x, y: playerL.state.position.y, w: 40, h: 40 };
+
     for (let i = anomalienL.length - 1; i >= 0; i--) {
       const a = anomalienL[i];
-      a.y += a.speed;
-      a.x += Math.sin((a.speed + Date.now() / 1000) * 2) * 0.5;
-      const machineCenterX = halfW / 2;
-      const machineCollisionHalfWidth = (GameConfig.machineCollisionHalfWidth ?? 384) / 2; // scaled for half
-      const machineCollisionTopY = H - (GameConfig.machineCollisionYOffset ?? 65);
-      if (a.y + a.radius >= machineCollisionTopY && Math.abs(a.x - machineCenterX) < machineCollisionHalfWidth) {
-        const baseDmg = Math.max(1, Math.round((GameConfig.machineDamageAnomalieCollision / 100) * a.hp));
-        // apply damage to left machine HP (separate from player lives)
-        machineHPL = Math.max(0, machineHPL - baseDmg);
-        // notify host about machine HP change
-        try { config.onMachineHPUpdate?.(machineHPL, machineHPR); } catch {}
-        // if machine destroyed, kill the player's lives to trigger game over for that side
-        if (machineHPL <= 0) {
-          playerL.state.lives = 0;
-        }
-        anomalienL.splice(i, 1);
-        continue;
-      }
-      if (a.y > H + 50) anomalienL.splice(i, 1);
+      const aRect = { x: a.x - a.radius, y: a.y - a.radius, w: a.radius*2, h: a.radius*2 };
+      let hit = false;
+      if(checkCollision(playerRectL, aRect)) { playerL.state.lives -= 10; blinkL_Player = 40; if(config.onLivesUpdateLeft) config.onLivesUpdateLeft(playerL.state.lives); hit = true; } 
+      else if(checkCollision(machineRectL, aRect) || a.y > H) { machineHPL -= 10; blinkL_Machine = 40; if(config.onMachineHPUpdate) config.onMachineHPUpdate(machineHPL, machineHPR); hit = true; }
+      if(hit) { anomalienL.splice(i, 1); continue; }
+      for(let j=bulletsL.length-1; j>=0; j--){ const b = bulletsL[j]; if(Math.sqrt((b.x-a.x)**2 + (b.y-a.y)**2) < a.radius + 2) { bulletsL.splice(j,1); a.hp -= b.damage; if(a.hp <= 0) { playerL.state.score += a.scorePoints; if(config.onScoreUpdateLeft) config.onScoreUpdateLeft(playerL.state.score); anomalienL.splice(i,1); } break; } }
     }
 
-    // collisions left
-    let scoreChangedL = false;
-    for (let i = anomalienL.length - 1; i >= 0; i--) {
-      const a = anomalienL[i];
-      for (let j = bulletsL.length - 1; j >= 0; j--) {
-        const b = bulletsL[j];
-        if (dist(b.x, b.y, a.x, a.y) < a.radius + 2) {
-          bulletsL.splice(j, 1);
-          a.hp -= b.damage;
-              if (a.hp <= 0) {
-            playerL.state.score += a.scorePoints;
-            scoreChangedL = true;
-            const pts = config.pointsPerLevel || 2500;
-            const calculatedLevel = Math.floor(playerL.state.score / pts) + 1;
-            if (calculatedLevel > playerL.state.level) {
-              const diff = calculatedLevel - playerL.state.level;
-              for (let k = 0; k < diff; k++) anomalieHelperL.levelUp(playerL.state);
-                      if (config.onLevelUpdate) config.onLevelUpdate(playerL.state.level);
-                      if (config.onLevelUpdateLeft) config.onLevelUpdateLeft(playerL.state.level);
-            }
-            if (Math.random() < (GameConfig.powerupChance ?? 0.18)) powerupsL.push(new Powerup(a));
-            anomalienL.splice(i, 1);
-            break;
-          }
-        }
-      }
+    // --- P2 (RECHTS) ---
+    playerR.move(inputR, W, H);
+    
+    // 4. BOUNDARY P2 FIX (Das Problem mit der Wand)
+    // Linke Grenze: Exakt die Mitte (halfW)
+    if (playerR.state.position.x < halfW) playerR.state.position.x = halfW;
+    // Rechte Grenze: Volle Breite (W) minus Puffer (50px)
+    if (playerR.state.position.x > W - 50) playerR.state.position.x = W - 50; 
+
+    // 5. SAFETY CHECK: Wenn P2 aus Versehen in P1 Hälfte spawnt -> Teleportieren
+    if (playerR.state.position.x < halfW) {
+        playerR.state.position.x = W * 0.75;
     }
 
-    if (scoreChangedL && config.onScoreUpdate) config.onScoreUpdate(playerL.state.score);
-    if (scoreChangedL && config.onScoreUpdateLeft) config.onScoreUpdateLeft(playerL.state.score);
-
-    for (let i = powerupsL.length - 1; i >= 0; i--) {
-      const p = powerupsL[i];
-      p.state.y += p.state.speed;
-      if (dist(p.state.x, p.state.y, playerL.state.position.x, playerL.state.position.y) < 18) {
-        p.apply(playerL.state);
-        powerupsL.splice(i, 1);
-        if (config.onLivesUpdate) config.onLivesUpdate(playerL.state.lives);
-        if (config.onScoreUpdate) config.onScoreUpdate(playerL.state.score);
-        if (config.onScoreUpdateLeft) config.onScoreUpdateLeft(playerL.state.score);
-      } else if (p.state.y > H + 30) powerupsL.splice(i, 1);
+    if(fireCooldownR > 0) fireCooldownR--;
+    if(inputR.shootOnce && fireCooldownR <= 0) { 
+      Bullet.fireBullet(bulletsR, playerR.state); 
+      fireCooldownR = 5; 
+      inputR.shootOnce = false; 
+      if(config.onShot) config.onShot('right');
     }
-
-    if (playerL.state.lives !== livesBeforeL) if (config.onLivesUpdate) config.onLivesUpdate(playerL.state.lives);
-
-    // RIGHT (mirror of left but x offset)
-    const livesBeforeR = playerR.state.lives;
-    playerR.move(inputR);
-    if (fireCooldownR > 0) fireCooldownR -= 1;
-    if (inputR.shootOnce) {
-      if (fireCooldownR <= 0) {
-        Bullet.fireBullet(bulletsR, playerR.state);
-        try { config.onShootRight?.(); } catch {}
-        fireCooldownR = Math.max(6 - playerR.state.levelWeapon, 2);
-      }
-      inputR.shootOnce = false;
+    for(let i=bulletsR.length-1; i>=0; i--) { 
+        bulletsR[i].y -= bulletsR[i].speed; 
+        if(bulletsR[i].y < -20) bulletsR.splice(i,1); 
     }
-    for (let i = bulletsR.length - 1; i >= 0; i--) {
-      const b = bulletsR[i];
-      b.y -= b.speed;
-      if (b.y < -10) bulletsR.splice(i, 1);
+    
+    // Anomalien P2
+    if(Math.random() < 0.02) {
+        const lvl = playerR.state.level || 1;
+        const r = 12 + Math.random() * 10 + (lvl * 2);
+        anomalienR.push({ 
+            x: halfW + 40 + Math.random() * (halfW - 80), 
+            y: -50, radius: r, speed: 2 + (lvl * 0.1), hp: r * 2, 
+            scorePoints: 100 + Math.round(r), strength: 1, imageIndex: 0 
+        } as any);
     }
+    for(const a of anomalienR) { a.y += a.speed; }
 
-    // spawn right side anomalies
-    if (anomalienR.length === 0 || (Date.now() - (anomalieHelperR as any).lastWaveAt > 1200 && anomalienR.length < Math.max(1, 3 + Math.floor((anomalieHelperR as any).currentLevel / 2)))) {
-      const lvl = (anomalieHelperR as any).currentLevel || 1;
-      const count = 2 + Math.floor(lvl * 0.8) + Math.floor(Math.random() * 2);
-      for (let i = 0; i < count; i++) {
-        const r = 12 + Math.floor(Math.random() * 18) + lvl * 2;
-        const x = halfW + (Math.random() * (halfW - 80) + 40);
-        anomalienR.push({ x, y: -50 - (i * 150) - (Math.random() * 50), radius: r, speed: 1 + Math.random() * 1.6 + (lvl * 0.15), hp: r * 2, strength: Math.round(r * 10), scorePoints: 100 + Math.round(lvl * 10) + Math.round(r), imageIndex: Math.floor(Math.random() * 7) });
-      }
-      try { (anomalieHelperR as any).lastWaveAt = Date.now(); } catch {}
-    }
+    // HITBOX P2 (Groß)
+    const machineRectR = { x: (halfW + halfW/2) - 150, y: H - 180, w: 300, h: 180 };
+    const playerRectR = { x: playerR.state.position.x, y: playerR.state.position.y, w: 40, h: 40 };
 
     for (let i = anomalienR.length - 1; i >= 0; i--) {
       const a = anomalienR[i];
-      a.y += a.speed;
-      a.x += Math.sin((a.speed + Date.now() / 1000) * 2) * 0.5;
-      const machineCenterX = halfW + halfW / 2;
-      const machineCollisionHalfWidth = (GameConfig.machineCollisionHalfWidth ?? 384) / 2;
-      const machineCollisionTopY = H - (GameConfig.machineCollisionYOffset ?? 65);
-      if (a.y + a.radius >= machineCollisionTopY && Math.abs(a.x - machineCenterX) < machineCollisionHalfWidth) {
-        const baseDmg = Math.max(1, Math.round((GameConfig.machineDamageAnomalieCollision / 100) * a.hp));
-        // apply damage to right machine HP
-        machineHPR = Math.max(0, machineHPR - baseDmg);
-        try { config.onMachineHPUpdate?.(machineHPL, machineHPR); } catch {}
-        if (machineHPR <= 0) {
-          playerR.state.lives = 0;
-        }
-        anomalienR.splice(i, 1);
-        continue;
-      }
-      if (a.y > H + 50) anomalienR.splice(i, 1);
+      const aRect = { x: a.x - a.radius, y: a.y - a.radius, w: a.radius*2, h: a.radius*2 };
+      let hit = false;
+      if(checkCollision(playerRectR, aRect)) { playerR.state.lives -= 10; blinkR_Player = 40; if(config.onLivesUpdateRight) config.onLivesUpdateRight(playerR.state.lives); hit = true; } 
+      else if(checkCollision(machineRectR, aRect) || a.y > H) { machineHPR -= 10; blinkR_Machine = 40; if(config.onMachineHPUpdate) config.onMachineHPUpdate(machineHPL, machineHPR); hit = true; }
+      if(hit) { anomalienR.splice(i, 1); continue; }
+      for(let j=bulletsR.length-1; j>=0; j--){ const b = bulletsR[j]; if(Math.sqrt((b.x-a.x)**2 + (b.y-a.y)**2) < a.radius + 2) { bulletsR.splice(j,1); a.hp -= b.damage; if(a.hp <= 0) { playerR.state.score += a.scorePoints; if(config.onScoreUpdateRight) config.onScoreUpdateRight(playerR.state.score); anomalienR.splice(i,1); } break; } }
     }
 
-    let scoreChangedR = false;
-    for (let i = anomalienR.length - 1; i >= 0; i--) {
-      const a = anomalienR[i];
-      for (let j = bulletsR.length - 1; j >= 0; j--) {
-        const b = bulletsR[j];
-        if (dist(b.x, b.y, a.x, a.y) < a.radius + 2) {
-          bulletsR.splice(j, 1);
-          a.hp -= b.damage;
-            if (a.hp <= 0) {
-            playerR.state.score += a.scorePoints;
-            scoreChangedR = true;
-            const pts = config.pointsPerLevel || 2500;
-            const calculatedLevel = Math.floor(playerR.state.score / pts) + 1;
-            if (calculatedLevel > playerR.state.level) {
-              const diff = calculatedLevel - playerR.state.level;
-              for (let k = 0; k < diff; k++) anomalieHelperR.levelUp(playerR.state);
-              if (config.onLevelUpdate) config.onLevelUpdate(playerR.state.level);
-              if (config.onLevelUpdateRight) config.onLevelUpdateRight(playerR.state.level);
-            }
-            if (Math.random() < (GameConfig.powerupChance ?? 0.18)) powerupsR.push(new Powerup(a));
-            anomalienR.splice(i, 1);
-            break;
-          }
-        }
-      }
-    }
-
-    // notify right-player score update
-    if (scoreChangedR && config.onScoreUpdateRight) config.onScoreUpdateRight(playerR.state.score);
-
-    for (let i = powerupsR.length - 1; i >= 0; i--) {
-      const p = powerupsR[i];
-      p.state.y += p.state.speed;
-      if (dist(p.state.x, p.state.y, playerR.state.position.x, playerR.state.position.y) < 18) {
-        p.apply(playerR.state);
-        powerupsR.splice(i, 1);
-        if (config.onLivesUpdate) config.onLivesUpdate(playerR.state.lives);
-        if (config.onScoreUpdate) config.onScoreUpdate(playerR.state.score);
-        if (config.onScoreUpdateRight) config.onScoreUpdateRight(playerR.state.score);
-      } else if (p.state.y > H + 30) powerupsR.splice(i, 1);
-    }
-
-    if (playerR.state.lives !== livesBeforeR) if (config.onLivesUpdate) config.onLivesUpdate(playerR.state.lives);
-
-    // Game over when both dead
-    if (playerL.state.lives <= 0 && playerR.state.lives <= 0) {
-      running = false;
-      if (config.onGameOver) config.onGameOver(Math.max(playerL.state.score, playerR.state.score));
+    if(machineHPL <= 0 || playerL.state.lives <= 0 || machineHPR <= 0 || playerR.state.lives <= 0) {
+        running = false;
+        if(config.onGameOver) config.onGameOver(Math.max(playerL.state.score, playerR.state.score));
     }
   }
 
-function render() {
-  ctx.fillStyle = '#050513'; //background design
-  ctx.fillRect(0, 0, W, H);
-
-  // divider
-  ctx.fillStyle = 'rgba(255,255,255,0.06)';
-  ctx.fillRect(halfW - 1, 0, 2, H);
-
-  // LEFT viewport
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(0, 0, halfW, H);
-  ctx.clip();
-
-  drawMachine(halfW / 2, H - (GameConfig.machineVisualYOffset ?? 80));
-  playerL.drawPlayer(playerL.state.position.x, playerL.state.position.y, images, ctx);
-  // bullets
-  const b = new Bullet(playerL.state);
-  b.drawBullet(ctx, bulletsL);
-  // anomalies
-  anomalieHelperL.drawAnomalie(images, ctx, anomalienL);
-  // powerups
-  for (const p of powerupsL) {
-    ctx.fillStyle = p.state.type === 'good' ? '#60d394' : '#ff6b6b';
-    ctx.beginPath();
-    ctx.arc(p.state.x, p.state.y, 8, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  ctx.restore();
-
-  // RIGHT viewport
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(halfW, 0, halfW, H);
-  ctx.clip();
-
-  drawMachine(halfW + halfW / 2, H - (GameConfig.machineVisualYOffset ?? 80));
-  playerR.drawPlayer(playerR.state.position.x, playerR.state.position.y, images, ctx);
-  const b2 = new Bullet(playerR.state);
-  b2.drawBullet(ctx, bulletsR);
-  anomalieHelperR.drawAnomalie(images, ctx, anomalienR);
-  for (const p of powerupsR) {
-    ctx.fillStyle = p.state.type === 'good' ? '#60d394' : '#ff6b6b';
-    ctx.beginPath();
-    ctx.arc(p.state.x, p.state.y, 8, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  ctx.restore();
-}
-
-//Draw Machine
-function drawMachine(x: number, y: number) {
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.scale(13, 7);
-
-  const img = images.maschine;
-  if (img) {
-    const drawW = 96;
-    const drawH = 48;
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
-    /*ctx.drawImage(img, -150 , -drawH / 2, drawW, drawH);
-    ctx.drawImage(img, -100 , -drawH / 2, drawW, drawH);
-    ctx.drawImage(img, -50, -drawH / 2, drawW, drawH);
-    ctx.drawImage(img, -0 , -drawH / 2, drawW, drawH);
-    ctx.drawImage(img, 50 , -drawH / 2, drawW, drawH);*/
-  
+  // --- RENDER ---
+  function render() {
+    ctx.fillStyle = '#050513';
+    ctx.fillRect(0, 0, W, H);
+    
+    // LINKS
+    ctx.save(); ctx.beginPath(); ctx.rect(0, 0, halfW, H); ctx.clip();
+    if(blinkL_Machine > 0) { blinkL_Machine--; if(Math.floor(blinkL_Machine/4)%2===0) ctx.globalAlpha = 0.5; }
+    drawMachine(halfW/2, H - 60); 
+    ctx.globalAlpha = 1;
+    if(blinkL_Player > 0) { blinkL_Player--; if(Math.floor(blinkL_Player/4)%2===0) ctx.globalAlpha = 0; }
+    playerL.drawPlayer(playerL.state.position.x, playerL.state.position.y, images, ctx);
+    ctx.globalAlpha = 1;
+    for(const b of bulletsL) { ctx.fillStyle='#0ff'; ctx.fillRect(b.x, b.y, 4, 10); } 
+    anomalieHelper.drawAnomalie(images, ctx, anomalienL);
     ctx.restore();
-    return;
+
+    // RECHTS
+    ctx.save(); ctx.beginPath(); ctx.rect(halfW, 0, halfW, H); ctx.clip();
+    if(blinkR_Machine > 0) { blinkR_Machine--; if(Math.floor(blinkR_Machine/4)%2===0) ctx.globalAlpha = 0.5; }
+    drawMachine(halfW + halfW/2, H - 60);
+    ctx.globalAlpha = 1;
+    if(blinkR_Player > 0) { blinkR_Player--; if(Math.floor(blinkR_Player/4)%2===0) ctx.globalAlpha = 0; }
+    playerR.drawPlayer(playerR.state.position.x, playerR.state.position.y, images, ctx);
+    ctx.globalAlpha = 1;
+    for(const b of bulletsR) { ctx.fillStyle='#FFFFFF'; ctx.fillRect(b.x, b.y, 4, 10); } 
+    anomalieHelper.drawAnomalie(images, ctx, anomalienR);
+    ctx.restore();
+
+    // TRENNWAND
+    ctx.strokeStyle = '#EF7D00'; ctx.lineWidth = 5; 
+    ctx.beginPath(); ctx.moveTo(halfW, 0); ctx.lineTo(halfW, H); ctx.stroke();
+    ctx.shadowBlur = 10; ctx.shadowColor = '#EF7D00'; ctx.stroke(); ctx.shadowBlur = 0;
   }
 
-  // Vector fallback if image isn't available
-  ctx.fillStyle = '#222';
-  ctx.fillRect(-48, -12, 96, 24);
+  function drawMachine(x: number, y: number) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(9, 5); 
+      if(images.maschine) ctx.drawImage(images.maschine, -48, -24, 96, 48);
+      else {
+        ctx.fillStyle = '#444'; ctx.fillRect(-48, -12, 96, 24);
+        ctx.fillStyle = '#f9d423'; ctx.fillRect(-6, -6, 12, 12);
+      }
+      ctx.restore();
+  }
 
-  ctx.fillStyle = '#444';
-  ctx.fillRect(-36, -10, 72, 20);
-
-  ctx.fillStyle = '#f9d423';
-  ctx.fillRect(-6, -6, 12, 12);
-
-  ctx.restore();
-}
-
-
-// game loop
-(async () => {
-  console.log("Preloading images...");
-  await preloadImages();
-
-  let frame = () => {
-    if (!running) return;
-    step();
-    render();
+  (async () => {
+    await preloadImages();
+    const frame = () => { if(!running) return; step(); render(); raf = requestAnimationFrame(frame); };
     raf = requestAnimationFrame(frame);
-  };
+  })();
 
-  raf = requestAnimationFrame(frame);
-})();
-
-/// API
-return {
-  destroy() {
-    running = false;
-    cancelAnimationFrame(raf);
-  },
-
-  setInput(s: any) {
-    // Backwards-compatible: merge into left player input when a simple map is provided.
-    if (!s) return;
-    if (s.leftPlayer || s.rightPlayer) {
-      if (s.leftPlayer) Object.assign(inputL, s.leftPlayer);
-      if (s.rightPlayer) Object.assign(inputR, s.rightPlayer);
-    } else {
-      // assume legacy single input map -> apply to left player
-      Object.assign(inputL, s);
-    }
-  },
-};
+  return { destroy() { running = false; cancelAnimationFrame(raf); }, setInput(s:any) {} };
 }
-

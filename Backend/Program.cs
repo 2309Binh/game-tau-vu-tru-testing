@@ -22,6 +22,28 @@ builder.Services.AddDbContext<GameDbContext>(options =>
 
 var app = builder.Build();
 
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<GameDbContext>();
+
+    var retries = 10;
+    var delay = TimeSpan.FromSeconds(2);
+
+    while (true)
+    {
+        try
+        {
+            await db.Database.MigrateAsync(); // erstellt/updated Schema automatisch
+            break;
+        }
+        catch (Exception ex) when (retries-- > 0)
+        {
+            Console.WriteLine($"DB not ready yet, retrying... {ex.Message}");
+            await Task.Delay(delay);
+        }
+    }
+}
+
 app.UseCors("AllowFrontend");
 
 app.MapControllers();

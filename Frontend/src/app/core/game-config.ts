@@ -24,12 +24,12 @@ export const GameConfig = {
     shotSoundVolume: 0.9,
     machineDamageAnomalieCollision: 5, //Prozentualer Wert der HP von Anomalie, die der Spieler an Schaden nimmt bei Kollision mit der Maschine
     // Collision tuning for the machine (visual image is scaled when drawn)
-    machineCollisionYOffset: 150, // vertical offset from bottom where machine collision begins
-    machineCollisionHalfWidth: 600, // horizontal half-width of machine collision box
-    // Visual offset for drawing the machine (pixels above bottom)
-    machineVisualYOffset: 60  ,
-    // HP for each machine in multiplayer
-    machineHP: 100,
+    // Reduce the half-width so collisions only register near the machine center.
+      // Move collision area higher so collisions register earlier on screen
+      machineCollisionYOffset: 150, // vertical offset from bottom where machine collision begins (was 150)
+      machineCollisionHalfWidth: 600, // horizontal half-width of machine collision box
+      machineVisualYOffset: 65,  // Visual offset for drawing the machine (pixels above bottom). Keep in sync with collision offset
+    machineHP: 100, // Starting HP for the machine
   };
   
  

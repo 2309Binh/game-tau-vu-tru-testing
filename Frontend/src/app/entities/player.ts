@@ -38,14 +38,17 @@ export class Player {
   }
 
 
-  move(input: InputState) {
+  move(input: InputState, canvasWidth?: number, canvasHeight?: number) {
+    const maxW = typeof canvasWidth === 'number' ? canvasWidth : GameConfig.canvasWidth;
+    const maxH = typeof canvasHeight === 'number' ? canvasHeight : GameConfig.canvasHeight;
+
     if (input.left === true) this.player.position.x -= this.player.speed;
     if (input.right === true) this.player.position.x += this.player.speed;
     if (input.up === true) this.player.position.y -= this.player.speed;
     if (input.down === true) this.player.position.y += this.player.speed;
 
-    this.player.position.x = this.border(this.player.position.x, 0, GameConfig.canvasWidth);
-    this.player.position.y = this.border(this.player.position.y, 0, GameConfig.canvasHeight);
+    this.player.position.x = this.border(this.player.position.x, 0, maxW);
+    this.player.position.y = this.border(this.player.position.y, 0, maxH);
   }
 
   takeDamage(amount: number) {

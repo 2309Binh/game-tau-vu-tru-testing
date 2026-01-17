@@ -10,7 +10,7 @@ export interface HighscoreDto {
 
 @Injectable({ providedIn: 'root' })
 export class HighscoreService {
-  private api = 'http://localhost:5000/api/highscore';
+  private api = 'http://localhost:5100/api/highscore';
 
   constructor(private http: HttpClient) {}
 

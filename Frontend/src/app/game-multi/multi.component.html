@@ -1,104 +1,86 @@
 <div class="game-root">
   
-  <div id="help-screen" class="screen hidden">
-    <h2>How to play</h2>
-    <ul>
-      <li>Move: Arrow Keys or WASD</li>
-      <li>Shoot: Space</li>
-      <li>If anomalies hit bottom, system status drops!</li>
-    </ul>
-    <button id="back-btn" (click)="hideHelp()">Back</button>
-  </div>
-
-  <div id="game-screen" class="screen hidden">
+  <div class="top-bar">
+    <div class="brand-section">
+      <span class="brand-orange">ifm</span> <span class="brand-white">statmath</span>
+    </div>
     
-    <app-hud 
-      [score]="score" 
-      [lives]="lives" 
-      [wave]="level"
-      [scoreL]="scoreL"
-      [scoreR]="scoreR"
-      [waveL]="levelL"
-      [waveR]="levelR"
-      [multiplayer]="true"> 
-    </app-hud>
-
-    <!-- Machine HP indicators (left / right) -->
-    <div class="machine-hp left">
-      <div class="label">Machine </div>
-      <div class="bar"><div class="fill" [style.width.%]="(machineHPL / (GameConfigRef.machineHP || 100)) * 100"></div></div>
-      <div class="val">{{ machineHPL }}</div>
-    </div>
-    <div class="machine-hp right">
-      <div class="label">Machine </div>
-      <div class="bar"><div class="fill" [style.width.%]="(machineHPR / (GameConfigRef.machineHP || 100)) * 100"></div></div>
-      <div class="val">{{ machineHPR }}</div>
-    </div>
-
-    <canvas #canvas width="900" height="600"></canvas>
-    
-    <div id="overlay">
-      <div id="pause">Paused</div>
-    </div>
-  </div>
-
-
-<!-- GAME OVER SCREEN (neuer Bereich) -->
-<div id="gameover-screen" class="screen hidden">
-  <div class="gameover-bg">
-
-    <h1 class="gameover-title">GAME OVER</h1>
-
-    <div class="score-box">
-      Your Score:
-      <span id="final-score">0</span>
-    </div>
-
-    <!--  HIGHSCORE BEREICH HIER -->
-    <div class="highscore-layout">
-
-      <!-- LEFT: ALLTIME -->
-      <div class="highscore-box">
-        <h3>🏆 Top 5 Alltime</h3>
-        <ul>
-          <li *ngFor="let h of topAlltime; index as i">
-            {{ i + 1 }}.
-            {{ h.playerName }} –
-            {{ h.score }}
-            <small>{{ h.createdAt | date:'dd.MM' }}</small>
-          </li>
-        </ul>
+    <div class="stats-section">
+      <div class="stat-box p1-text">
+        <span class="stat-label">P1 SCORE</span>
+        <span class="stat-value">{{ scoreL }}</span>
+      </div>
+      <div class="stat-box p1-text">
+        <span class="stat-label">P1 LEVEL</span>
+        <span class="stat-value">{{ levelL }}</span>
+      </div>
+      
+      <div class="stat-box" style="justify-content: center; opacity: 0.3;">
+        <span class="brand-white" style="font-size: 20px;">|</span>
       </div>
 
-      <!-- RIGHT: TODAY -->
-      <div class="highscore-box">
-        <h3>📅 Top 5 Today</h3>
-        <ul>
-          <li *ngFor="let h of topToday; index as i">
-            {{ i + 1 }}.
-            {{ h.playerName }} –
-            {{ h.score }}
-            <small>{{ h.createdAt | date:'HH:mm' }}</small>
-          </li>
-        </ul>
+      <div class="stat-box p2-text">
+        <span class="stat-label">P2 SCORE</span>
+        <span class="stat-value">{{ scoreR }}</span>
+      </div>
+      <div class="stat-box p2-text">
+        <span class="stat-label">P2 LEVEL</span>
+        <span class="stat-value">{{ levelR }}</span>
       </div>
     </div>
-
-    <div class="buttons">
-
-      <input
-        id="name"
-        type="text"
-        class="name-input"
-        placeholder="Your name"
-        maxlength="12"
-      />
-
-      <button class="save-btn" (click)="saveScore()">Save Score</button>
-      <button class="retry-btn" (click)="start()">Retry</button>
-      <button class="menu-btn" (click)="back()">Back to Menu</button>
-
-    </div>
-
   </div>
+
+
+  <div class="monitor-wrapper left">
+    <div class="damage-indicator-container">
+      <div class="confidence-band" 
+           [class.warning]="machineHPL <= 70 && machineHPL > 30"
+           [class.critical]="machineHPL <= 30">
+      </div>
+    </div>
+    <div class="status-panel">
+      <span class="status-label">SYS.L</span>
+      <div class="led-container">
+        <div class="led" [class.active-green]="machineHPL > 70" [class.active-orange]="machineHPL <= 70 && machineHPL > 30" [class.active-red]="machineHPL <= 30"></div>
+        <div class="led" [class.active-green]="machineHPL > 70" [class.active-orange]="machineHPL <= 70 && machineHPL > 30"></div>
+        <div class="led" [class.active-green]="machineHPL > 70"></div>
+      </div>
+      <span class="lives-number" 
+            [class.normal]="machineHPL > 70"
+            [class.warning]="machineHPL <= 70 && machineHPL > 30"
+            [class.critical]="machineHPL <= 30">
+        {{ machineHPL }}%
+      </span>
+    </div>
+  </div>
+
+
+  <div class="monitor-wrapper right">
+    <div class="damage-indicator-container">
+      <div class="confidence-band" 
+           [class.warning]="machineHPR <= 70 && machineHPR > 30"
+           [class.critical]="machineHPR <= 30">
+      </div>
+    </div>
+    <div class="status-panel">
+      <span class="status-label">SYS.R</span>
+      <div class="led-container">
+        <div class="led" [class.active-green]="machineHPR > 70" [class.active-orange]="machineHPR <= 70 && machineHPR > 30" [class.active-red]="machineHPR <= 30"></div>
+        <div class="led" [class.active-green]="machineHPR > 70" [class.active-orange]="machineHPR <= 70 && machineHPR > 30"></div>
+        <div class="led" [class.active-green]="machineHPR > 70"></div>
+      </div>
+      <span class="lives-number" 
+            [class.normal]="machineHPR > 70"
+            [class.warning]="machineHPR <= 70 && machineHPR > 30"
+            [class.critical]="machineHPR <= 30">
+        {{ machineHPR }}%
+      </span>
+    </div>
+  </div>
+
+
+  <canvas #canvas></canvas>
+  
+  <div id="game-screen" class="screen hidden"></div> 
+
 </div>

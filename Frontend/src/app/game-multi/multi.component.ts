@@ -2,16 +2,13 @@ import { AfterViewInit, Component, ElementRef, NgZone, OnDestroy, ViewChild, Hos
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { initGame } from './multi.logic';
-import { HudComponent } from '../hud/hud';
 import { GameConfig } from '../core/game-config';
 import { HighscoreService } from '../core/services/highscore.service';
-import { HighscoreDto } from '../core/services/highscore.service';
-
 
 @Component({
   standalone: true,
   selector: 'app-game-multi',
-  imports: [CommonModule, HudComponent], 
+  imports: [CommonModule],
   templateUrl: './multi.component.html',
   styleUrls: ['./multi.component.css']
 })
@@ -19,377 +16,203 @@ export class GameMultiComponent implements AfterViewInit, OnDestroy {
   
   @ViewChild('canvas', { static: true }) canvasRef!: ElementRef<HTMLCanvasElement>;
 
-  
-  @ViewChild(HudComponent) hudComponent!: HudComponent; 
-  
-
-  // --- EINSTELLUNGEN ---
+  // Settings
   readonly POINTS_PER_LEVEL = 2500; 
 
-  // --- HUD VARIABLEN ---
-  score = 0; 
-  lives = 100; 
-  level = 1;
-  highscore = 0;
-  // split-screen stats
-  scoreL = 0;
-  scoreR = 0;
-  levelL = 1;
-  levelR = 1;
-  // Machine HP (left / right)
-  machineHPL = (GameConfig.machineHP ?? 100);
-  machineHPR = (GameConfig.machineHP ?? 100);
-
-  // --- HIGHSCORE LISTEN ---
-  topAlltime: HighscoreDto[] = [];
-  topToday: HighscoreDto[] = [];
-
-  
-  // Punkte pro Level
-  nextLevelThreshold = this.POINTS_PER_LEVEL;
+  // HUD Variablen
+  scoreL = 0; levelL = 1; livesL = 100;
+  scoreR = 0; levelR = 1; livesR = 100;
+  machineHPL = 100; machineHPR = 100;
 
   private gameInstance: any = null;
-  private _keyDownHandler: ((e: KeyboardEvent)=>void) | null = null;
-  private _keyUpHandler: ((e: KeyboardEvent)=>void) | null = null;
-
-  // Audio
   private bgm: HTMLAudioElement | null = null;
   private shotSfx: HTMLAudioElement | null = null;
-  private _bgmResumeHandler: EventListener | null = null;
 
-  constructor(private router: Router, private ngZone: NgZone, private highscoreService: HighscoreService ) {}
+  // Gamepad support (two players)
+  private _gamepadLoopHandle: number | null = null;
+  private _prevButtonsLeft: boolean[] = [];
+  private _prevButtonsRight: boolean[] = [];
+  private _gamepadIndexLeft = 0; // first gamepad
+  private _gamepadIndexRight = 1; // second gamepad
 
-  // expose GameConfig to template
-  GameConfigRef = GameConfig;
+  constructor(
+    private router: Router, 
+    private ngZone: NgZone,
+    private highscoreService: HighscoreService
+  ) {}
 
   ngAfterViewInit(): void {
-    // Canvas Größe - Initialer Check
-    try{
-      const canvas = this.canvasRef?.nativeElement;
-      if(canvas){
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-      }
-    }catch(e){ console.warn('Error sizing canvas', e); }
-
-    // (removed local highscore persistence)
-
-    if (typeof document !== 'undefined') {
-      const game = document.getElementById('game-screen');
-      const over = document.getElementById('gameover-screen');
-
-      // Spiel sofort anzeigen
-      if (game) game.classList.remove('hidden');
-
-      // GameOver weiterhin versteckt
-      if (over) over.classList.add('hidden');
-      this.start();
-    }
+    this.start(); // Sofortiger Start ohne Umschweife
   }
 
-  // Reagiert auf Fenster-Größenänderung
   @HostListener('window:resize')
   onResize() {
     const canvas = this.canvasRef?.nativeElement;
     if (canvas) {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
-
-      GameConfig.canvasWidth = window.innerWidth;
-      GameConfig.canvasHeight = window.innerHeight;
     }
   }
 
   start(){
-    console.log('[GameComponent] start() called');
-    
-    // Screens umschalten
-    const startScreen = document.getElementById('start-screen');
-    const gameScreen = document.getElementById('game-screen');
-    const gameoverScreen = document.getElementById('gameover-screen');
-    
-    if(startScreen) startScreen.classList.add('hidden');
-    if(gameoverScreen) gameoverScreen.classList.add('hidden');
-    if(gameScreen) gameScreen.classList.remove('hidden');
-
     // Cleanup
-    if(this.gameInstance && this.gameInstance.destroy){
-      this.gameInstance.destroy();
-      this.detachKeyboardControls();
-    }
-    this.gameInstance = null;
-
-    // Reset Variablen
-    this.score = 0; 
-    this.lives = 100; 
-    this.level = 1;
-    this.nextLevelThreshold = this.POINTS_PER_LEVEL;
+    if(this.gameInstance && this.gameInstance.destroy) this.gameInstance.destroy();
+    
+    // Reset
+    this.scoreL = 0; this.scoreR = 0;
+    this.levelL = 1; this.levelR = 1;
+    this.livesL = 100; this.livesR = 100;
+    this.machineHPL = 100; this.machineHPR = 100;
 
     const canvas = this.canvasRef.nativeElement;
-
-    // Vollbild aktivieren und Config updaten
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
-    GameConfig.canvasWidth = window.innerWidth;
-    GameConfig.canvasHeight = window.innerHeight;
+    this.playBGM();
     
-    // BGM Starten
-    try {
-      if (!this.bgm) {
-        const bgmSrc = (GameConfig as any).bgm || '/assets/sound/background.mp3';
-        this.bgm = new Audio(bgmSrc);
-        this.bgm.loop = true;
-        this.bgm.volume = (GameConfig as any).bgmVolume || 0.25;
-      }
-
-      // Versuche phát ngay; nếu browser chặn (autoplay policy),
-      // đăng ký một handler để thử phát lại sau tương tác người dùng.
-      this.bgm.play().catch(() => {
-        // Autoplay blocked: silently register one-time resume on first user gesture
-        if (!this._bgmResumeHandler) {
-          this._bgmResumeHandler = (e: Event) => {
-            try {
-              this.bgm?.play().catch(()=>{});
-            } finally {
-              if (this._bgmResumeHandler) {
-                window.removeEventListener('click', this._bgmResumeHandler);
-                window.removeEventListener('keydown', this._bgmResumeHandler);
-                this._bgmResumeHandler = null;
-              }
-            }
-          };
-          window.addEventListener('click', this._bgmResumeHandler);
-          window.addEventListener('keydown', this._bgmResumeHandler);
-        }
-      });
-    } catch (err) { console.warn('Error starting BGM', err); }
-    
-    // --- INIT GAME LOGIC ---
+    // Start Logic
     this.gameInstance = initGame(canvas, {
-      
       pointsPerLevel: this.POINTS_PER_LEVEL,
-      onMachineHPUpdate: (l: number, r: number) => {
-        this.ngZone.run(() => {
-          this.machineHPL = l;
-          this.machineHPR = r;
-        });
-      },
 
-      onScoreUpdate: (newScore: number) => {
-        this.ngZone.run(() => {
-          this.score = newScore;
-          
-          const currentLevel = Math.floor(this.score / this.POINTS_PER_LEVEL) + 1;
-          
-          if (currentLevel > this.level) {
-             console.log("HUD Zwangsuptade auf Level:", currentLevel);
-             this.level = currentLevel;
-          }
-          
-          this.nextLevelThreshold = this.level * this.POINTS_PER_LEVEL;
+      onMachineHPUpdate: (l: number, r: number) => this.ngZone.run(() => { this.machineHPL = l; this.machineHPR = r; }),
 
-        });
-      },
-      onScoreUpdateLeft: (newScore: number) => {
-        this.ngZone.run(() => {
-          this.scoreL = newScore;
-          // keep primary score in HUD pointing to left player for compatibility
-          this.score = newScore;
-          const currentLevel = Math.floor(this.scoreL / this.POINTS_PER_LEVEL) + 1;
-          if (currentLevel > this.levelL) this.levelL = currentLevel;
-        });
-      },
-      onScoreUpdateRight: (newScore: number) => {
-        this.ngZone.run(() => {
-          this.scoreR = newScore;
-          const currentLevel = Math.floor(this.scoreR / this.POINTS_PER_LEVEL) + 1;
-          if (currentLevel > this.levelR) this.levelR = currentLevel;
-        });
-      },
-      onShootLeft: () => {
-        this.ngZone.run(() => { this.playShotSound(); });
-      },
-      onShootRight: () => {
-        this.ngZone.run(() => { this.playShotSound(); });
-      },
-      
-      
-      onLivesUpdate: (newLives: number) => {
-        this.ngZone.run(() => {
-          
-          if (newLives < this.lives && this.hudComponent) {
-             
-             
-             this.hudComponent.hitIndicator = true;
+      // Player 1
+      onScoreUpdateLeft: (n: number) => this.ngZone.run(() => { 
+        this.scoreL = n; 
+        const lvl = Math.floor(n/this.POINTS_PER_LEVEL)+1;
+        if(lvl > this.levelL) this.levelL = lvl;
+      }),
+      onLivesUpdateLeft: (n: number) => this.ngZone.run(() => this.livesL = n),
 
-             
-             setTimeout(() => {
-                if (this.hudComponent) {
-                   this.hudComponent.hitIndicator = false;
-                }
-             }, 300);
-          }
+      // Player 2
+      onScoreUpdateRight: (n: number) => this.ngZone.run(() => { 
+        this.scoreR = n;
+        const lvl = Math.floor(n/this.POINTS_PER_LEVEL)+1;
+        if(lvl > this.levelR) this.levelR = lvl;
+      }),
+      onLivesUpdateRight: (n: number) => this.ngZone.run(() => this.livesR = n),
 
-          this.lives = newLives;
-        });
-      },
-      // ----------------------------------------------------
+      // Play shot SFX when the logic reports a fired shot
+      onShot: (player: 'left'|'right') => this.ngZone.run(() => { this.playShotSound(); }),
 
-      onLevelUpdate: (newLevel: number) => {
+      // GAME OVER -> Weiterleitung zur Komponente
+      onGameOver: (finalScore: number) => {
         this.ngZone.run(() => {
-          this.level = newLevel;
-          this.nextLevelThreshold = this.level * this.POINTS_PER_LEVEL;
-        });
-      },
-      onLevelUpdateLeft: (newLevel: number) => {
-        this.ngZone.run(() => { this.levelL = newLevel; });
-      },
-      onLevelUpdateRight: (newLevel: number) => {
-        this.ngZone.run(() => { this.levelR = newLevel; });
-      },
-      onGameOver: (score: number) => {
-        this.ngZone.run(() => {
-          this.onGameOverClean(score);
+          this.destroyGame();
+          // Navigiere zur existierenden Game Over Route
+          // Wir übergeben den Score via 'state', falls deine GameOverComponent das lesen kann.
+          // Falls nicht, speichert der Service den Highscore ggf. anders, aber so ist es sauber.
+          this.router.navigate(['/game-over'], { state: { score: finalScore } });
         });
       }
     });
-    
-    // input handled inside game logic for split-screen; do not attach legacy handlers
-    // this.attachKeyboardControls();
-    console.log('[GameComponent] gameInstance created');
+    // Attach dual-gamepad polling
+    this.attachGamepadControls();
   }
 
-  // --- Helpers ---
-
-  private attachKeyboardControls(){
-    if(typeof window === 'undefined') return;
-    if(this._keyDownHandler) return;
-
-    this._keyDownHandler = (e: KeyboardEvent) => {
-      if(!this.gameInstance) return;
-      const code = e.code;
-      const map: any = {};
-      
-      if(code === 'ArrowLeft' || code === 'KeyA') { map.left = true; e.preventDefault(); }
-      if(code === 'ArrowRight' || code === 'KeyD') { map.right = true; e.preventDefault(); }
-      if(code === 'ArrowUp' || code === 'KeyW') { map.up = true; e.preventDefault(); }
-      if(code === 'ArrowDown' || code === 'KeyS') { map.down = true; e.preventDefault(); }
-      
-      if(code === 'Space' || code === 'Spacebar') { 
-        map.shootOnce = true; 
-        e.preventDefault(); 
-        this.playShotSound(); 
-      }
-      
-      this.gameInstance.setInput(map);
-    };
-
-    this._keyUpHandler = (e: KeyboardEvent) => {
-      if(!this.gameInstance) return;
-      const code = e.code;
-      const map: any = {};
-      
-      if(code === 'ArrowLeft' || code === 'KeyA') { map.left = false; e.preventDefault(); }
-      if(code === 'ArrowRight' || code === 'KeyD') { map.right = false; e.preventDefault(); }
-      if(code === 'ArrowUp' || code === 'KeyW') { map.up = false; e.preventDefault(); }
-      if(code === 'ArrowDown' || code === 'KeyS') { map.down = false; e.preventDefault(); }
-      
-      this.gameInstance.setInput(map);
-    };
-
-    window.addEventListener('keydown', this._keyDownHandler);
-    window.addEventListener('keyup', this._keyUpHandler);
-  }
-
-  private detachKeyboardControls(){
-    if(typeof window === 'undefined') return;
-    if(this._keyDownHandler) window.removeEventListener('keydown', this._keyDownHandler);
-    if(this._keyUpHandler) window.removeEventListener('keyup', this._keyUpHandler);
-    this._keyDownHandler = null;
-    this._keyUpHandler = null;
-  }
-
-  back(){ this.router.navigateByUrl('/'); }
-
-  showHelp(){ 
-    document.getElementById('start-screen')?.classList.add('hidden'); 
-    document.getElementById('help-screen')?.classList.remove('hidden'); 
-  }
-  
-  hideHelp(){ 
-    document.getElementById('help-screen')?.classList.add('hidden'); 
-    document.getElementById('start-screen')?.classList.remove('hidden'); 
-  }
-
-  saveScore() {
-  const name =
-    (document.getElementById('name') as HTMLInputElement)?.value || 'Anon';
-
-  this.highscoreService
-    .save(name.slice(0, 12), this.score)
-    .subscribe({
-      next: () => {
-        console.log('Score gespeichert');
-      },
-      error: err => console.error(err)
-    });
- }
-
-  onGameOverClean(sc:number){
-    if(this.gameInstance && this.gameInstance.destroy){
-      this.gameInstance.destroy();
-    }
-    this.gameInstance = null;
-    this.detachKeyboardControls();
-    
-    this.score = sc;
-    const final = document.getElementById('final-score');
-    if(final) final.textContent = String(sc);
-
-    this.highscoreService.getTopAlltime().subscribe(data => {
-      this.topAlltime = data;
-    });
-
-    this.highscoreService.getTopToday().subscribe(data => {
-      this.topToday = data;
-    });
-    
-    document.getElementById('game-screen')?.classList.add('hidden');
-    document.getElementById('gameover-screen')?.classList.remove('hidden');
-  }
-
-  ngOnDestroy(): void {
+  destroyGame() {
     if (this.gameInstance && this.gameInstance.destroy) this.gameInstance.destroy();
-    this.detachKeyboardControls();
-    
-    try {
-      if (this.bgm) {
-        this.bgm.pause();
-        this.bgm.currentTime = 0;
-      }
-    } catch {}
-
-    if (this._bgmResumeHandler) {
-      try {
-        window.removeEventListener('click', this._bgmResumeHandler as EventListener);
-        window.removeEventListener('keydown', this._bgmResumeHandler as EventListener);
-      } catch {}
-      this._bgmResumeHandler = null;
-    }
+    try { if (this.bgm) { this.bgm.pause(); this.bgm.currentTime = 0; } } catch {}
+    this.detachGamepadControls();
   }
 
+  ngOnDestroy(): void { this.destroyGame(); }
+
+  // --- Gamepad: dual-player support ---
   private playShotSound() {
     try {
       if (!this.shotSfx) {
         const shotSrc = (GameConfig as any).shotSound || '/assets/sound/shot.mp3';
         this.shotSfx = new Audio(shotSrc);
-        this.shotSfx.preload = 'auto';
       }
       const s = this.shotSfx.cloneNode() as HTMLAudioElement;
-      s.volume = (GameConfig as any).shotSoundVolume || 0.9;
-
+      s.volume = 0.5;
       s.play().catch(() => {});
-    } catch (err) { console.warn('Error playing shot SFX', err); }
+    } catch (err) {}
+  }
+
+  private attachGamepadControls() {
+    if (typeof navigator === 'undefined' || !('getGamepads' in navigator)) return;
+    if (this._gamepadLoopHandle) return;
+
+    // initialize previous arrays if pads present
+    const pads = navigator.getGamepads ? navigator.getGamepads() : null;
+    if (pads) {
+      const gpL = pads[this._gamepadIndexLeft] as Gamepad | null;
+      const gpR = pads[this._gamepadIndexRight] as Gamepad | null;
+      if (gpL && gpL.buttons) this._prevButtonsLeft = gpL.buttons.map(b => !!b.pressed);
+      if (gpR && gpR.buttons) this._prevButtonsRight = gpR.buttons.map(b => !!b.pressed);
+    }
+
+    const loop = () => { this.gamepadPollLoop(); this._gamepadLoopHandle = window.requestAnimationFrame(loop); };
+    this._gamepadLoopHandle = window.requestAnimationFrame(loop);
+  }
+
+  private detachGamepadControls() {
+    if (this._gamepadLoopHandle) {
+      try { window.cancelAnimationFrame(this._gamepadLoopHandle); } catch (e) {}
+      this._gamepadLoopHandle = null;
+    }
+    this._prevButtonsLeft = [];
+    this._prevButtonsRight = [];
+  }
+
+  private gamepadPollLoop() {
+    try {
+      const pads = navigator.getGamepads ? navigator.getGamepads() : null;
+      if (!pads) return;
+
+      const pollFor = (gp: Gamepad | null, prev: boolean[], side: 'left' | 'right') => {
+        if (!gp) return;
+        const deadzone = 0.3;
+        const ax0 = (gp.axes && gp.axes.length > 0) ? gp.axes[0] : 0;
+        const ax1 = (gp.axes && gp.axes.length > 1) ? gp.axes[1] : 0;
+        const left = ax0 < -deadzone;
+        const right = ax0 > deadzone;
+        const up = ax1 < -deadzone;
+        const down = ax1 > deadzone;
+
+        const btns = gp.buttons.map(b => !!b.pressed);
+        const shootButtonIndices = [0,1,2,3,4,5];
+        let shootOnce = false;
+        for (const idx of shootButtonIndices) {
+          if (btns[idx] && !(prev[idx])) { shootOnce = true; break; }
+        }
+
+        const inputMap: any = {};
+        inputMap.left = left;
+        inputMap.right = right;
+        inputMap.up = up;
+        inputMap.down = down;
+        if (shootOnce) { inputMap.shootOnce = true; }
+
+        // include player indicator so multi.logic routes properly
+        inputMap.player = side === 'left' ? 'left' : 'right';
+
+        if (this.gameInstance && this.gameInstance.setInput) this.gameInstance.setInput(inputMap);
+
+        // copy into prev
+        for (let i = 0; i < btns.length; i++) prev[i] = btns[i];
+      };
+
+      const gpL = pads[this._gamepadIndexLeft] as Gamepad | null;
+      const gpR = pads[this._gamepadIndexRight] as Gamepad | null;
+      pollFor(gpL, this._prevButtonsLeft, 'left');
+      pollFor(gpR, this._prevButtonsRight, 'right');
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  private playBGM() {
+    try {
+        if (!this.bgm) {
+          const bgmSrc = (GameConfig as any).bgm || '/assets/sound/background.mp3';
+          this.bgm = new Audio(bgmSrc);
+          this.bgm.loop = true;
+          this.bgm.volume = 0.25;
+        }
+        this.bgm.play().catch(() => {});
+    } catch (e) {}
   }
 }

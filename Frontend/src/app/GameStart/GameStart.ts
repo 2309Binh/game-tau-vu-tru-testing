@@ -2,21 +2,21 @@ import { Component, OnDestroy, OnInit } from '@angular/core';
 import { Router, NavigationEnd } from '@angular/router';
 import { filter, Subscription } from 'rxjs';
 import { HighscoreService, HighscoreDto } from '../core/services/highscore.service';
-import { CommonModule, DatePipe } from '@angular/common';
-
+import { CommonModule } from '@angular/common'; // DatePipe hier entfernt, CommonModule reicht!
 
 @Component({
   selector: 'app-game-start',
   standalone: true,
-  imports: [CommonModule, DatePipe],
+  imports: [CommonModule], // Hier auch nur CommonModule (enthält DatePipe, ngIf, ngFor)
   templateUrl: './GameStart.html',
-  styleUrls: ['./GameStart.css']
+  styleUrls: ['./GameStart.css'] // Achte darauf, ob die Datei .css oder .scss heißt
 })
 export class GameStartComponent implements OnInit, OnDestroy {
 
   topAlltime: HighscoreDto[] = [];
   topToday: HighscoreDto[] = [];
   showModeSelection = false;
+  showAnleitung = false;
 
    private sub?: Subscription;
 
@@ -24,14 +24,13 @@ export class GameStartComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    // initial
+    // initial laden
     this.loadTopScores();
 
-    // jedes Mal, wenn wir wieder auf "/" landen
+    // jedes Mal, wenn wir wieder auf "/" landen (falls man zurück navigiert)
     this.sub = this.router.events
       .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
       .subscribe((e) => {
-        // wenn wir wieder im Start-Menü sind
         if (e.urlAfterRedirects === '/' || e.urlAfterRedirects.startsWith('/?')) {
           this.loadTopScores();
         }
@@ -66,7 +65,9 @@ export class GameStartComponent implements OnInit, OnDestroy {
     this.router.navigate(['/highscore']);
   }
 
+  // Hier haben wir die Änderung gemacht:
   onAnleitung() {
-    this.router.navigate(['/anleitung']);
+    // Statt weg zu navigieren, schalten wir das Overlay an:
+    this.showAnleitung = true;
   }
 }

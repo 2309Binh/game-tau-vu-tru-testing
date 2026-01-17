@@ -1,0 +1,71 @@
+<div class="game-over-root">
+  <div class="scanlines"></div>
+  <div class="stars"></div>
+  <div class="main-layout">
+
+    <div class="side-panel left-panel">
+      <div class="hs-box side-box">
+        <h3 class="hs-title">🏆 ALLTIME</h3>
+        <ul>
+          <li *ngFor="let h of topAlltime; index as i">
+            <span class="hs-rank">{{ i + 1 }}.</span>
+            <span class="hs-name">{{ h.playerName }}</span>
+            <span class="hs-score">{{ h.score }}</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="center-panel">
+      
+      <div class="title-wrapper">
+        <h1 class="title">
+          <div>GAME</div>
+          <div>OVER</div>
+        </h1>
+      </div>
+
+      <div class="gameover-content">
+        <div class="final-score-box">
+          <span>SCORE:</span>
+          <span class="score-value">{{ score }}</span>
+        </div>
+
+        <div class="arcade-input-wrapper">
+          <div class="instruction-blink">ENTER INITIALS</div>
+
+          <div class="char-container">
+            <div *ngFor="let char of nameChars; index as i" 
+                 class="char-box" 
+                 [class.active]="i === activeSlot">
+              {{ char }}
+            </div>
+          </div>
+        </div>
+
+        <div class="menu-hint">
+          PRESS <span class="btn-highlight">START</span> TO SAVE
+        </div>
+
+        <div class="menu-buttons">
+          <button class="pixel-btn" (click)="onMenu()">MENU</button>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="side-panel right-panel">
+      <div class="hs-box side-box">
+        <h3 class="hs-title">📅 TODAY</h3>
+        <ul>
+          <li *ngFor="let h of topToday; index as i">
+            <span class="hs-rank">{{ i + 1 }}.</span>
+            <span class="hs-name">{{ h.playerName }}</span>
+            <span class="hs-score">{{ h.score }}</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+</div>

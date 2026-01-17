@@ -1,0 +1,273 @@
+/* Container für die ganze Seite */
+.game-over-root {
+  position: relative;
+  width: 100vw; 
+  height: 100vh;
+  /* Retro Hintergrund: Schwarz mit orangen Punkten */
+  background-color: #050505;
+  background-image: radial-gradient(#d46a00 1.5px, transparent 1.5px);
+  background-size: 30px 30px;
+  font-family: 'Press Start 2P', monospace, sans-serif; /* Falls du die Font hast */
+  color: #ff9900;
+  overflow: hidden;
+}
+
+/* Scanlines Overlay */
+.scanlines {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0),
+    rgba(255, 255, 255, 0) 50%,
+    rgba(0, 0, 0, 0.2) 50%,
+    rgba(0, 0, 0, 0.2)
+  );
+  background-size: 100% 4px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Layout Grid */
+.main-layout {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 100%;
+  padding: 0 40px;
+  position: relative;
+  z-index: 10;
+}
+
+.side-panel {
+  width: 280px;
+  display: flex;
+  flex-direction: column;
+}
+
+.center-panel {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Highscore Boxen */
+.hs-box {
+  border: 2px solid #be5e00;
+  background: rgba(0, 0, 0, 0.9);
+  padding: 20px;
+  box-shadow: 0 0 15px rgba(190, 94, 0, 0.2);
+  border-radius: 4px;
+}
+
+.hs-title {
+  color: #ffad33;
+  text-align: center;
+  border-bottom: 2px dashed #be5e00;
+  padding-bottom: 10px;
+  margin-top: 0;
+  font-size: 1rem;
+}
+
+ul { padding: 0; list-style: none; margin: 0; }
+li {
+  display: flex; justify-content: space-between;
+  margin-bottom: 8px; font-size: 0.75rem; color: #ccc;
+}
+.hs-rank { color: #ff9900; margin-right: 5px; }
+.hs-score { color: #fff; }
+
+/* Titel GAME OVER */
+.title {
+  font-size: 3.5rem;
+  line-height: 1.2;
+  margin: 0 0 20px 0;
+  text-align: center;
+  color: #ff9900;
+  text-shadow: 
+    2px 2px 0px #be5e00,
+    4px 4px 0px #be5e00,
+    6px 6px 0px #8b4500,
+    0 0 25px rgba(255, 153, 0, 0.5);
+}
+
+/* Input & Score */
+.gameover-content {
+  display: flex; flex-direction: column; align-items: center; gap: 20px;
+}
+
+.final-score-box {
+  font-size: 1.5rem; color: #fff; text-shadow: 2px 2px 0 #be5e00;
+}
+.score-value { color: #ff9900; font-weight: bold; }
+
+.pixel-input {
+  background: rgba(0, 0, 0, 0.8);
+  border: 3px solid #be5e00;
+  color: #ff9900;
+  font-family: inherit; font-size: 1.2rem;
+  padding: 15px; text-align: center;
+  text-transform: uppercase; outline: none;
+  width: 250px;
+}
+.pixel-input:focus {
+  border-color: #ffad33;
+  box-shadow: 0 0 15px rgba(255, 173, 51, 0.4);
+}
+
+/* Buttons */
+.menu-buttons {
+  display: flex; flex-direction: column; gap: 15px; margin-top: 10px;
+}
+
+.pixel-btn {
+  background: transparent; border: none;
+  font-family: inherit; font-size: 1.5rem;
+  color: #be5e00; cursor: pointer;
+  text-transform: uppercase;
+  text-shadow: 2px 2px 0 #000;
+  transition: all 0.2s ease;
+}
+
+.pixel-btn:hover {
+  color: #ff9900; transform: scale(1.1);
+  text-shadow: 2px 2px 0 #be5e00, 0 0 15px rgba(255, 153, 0, 0.6);
+}
+
+.save-btn {
+  color: #fff; font-size: 1.2rem;
+  border: 2px solid #be5e00; padding: 10px 20px;
+}
+.save-btn:hover {
+  background: rgba(190, 94, 0, 0.2); color: #ff9900;
+}
+
+@media (max-width: 1000px) {
+  .main-layout {
+    flex-direction: column; padding-top: 40px; overflow-y: auto;
+  }
+  .side-panel { width: 90%; margin-bottom: 20px; order: 2; }
+  .center-panel { order: 1; margin-bottom: 40px; }
+  .title { font-size: 2.5rem; }
+}
+
+/* Container für die Eingabe */
+.arcade-input-wrapper {
+  margin: 20px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.instruction-blink {
+  font-size: 0.8rem;
+  color: #ff9900;
+  animation: blink 1s infinite;
+}
+
+.char-container {
+  display: flex;
+  gap: 15px;
+}
+
+/* Die einzelnen Buchstaben-Boxen */
+.char-box {
+  width: 50px;
+  height: 60px;
+  border: 4px solid #444; /* Inaktiv: Dunkelgrau */
+  background: #000;
+  color: #fff;
+  font-size: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-transform: uppercase;
+}
+
+/* Der AKTIVE Buchstabe (wo der Cursor ist) */
+.char-box.active {
+  border-color: #ff9900; /* Akzentfarbe */
+  color: #ff9900;
+  box-shadow: 0 0 15px #ff9900(224, 76, 255, 0.5);
+  animation: pulseBox 0.5s infinite alternate;
+}
+
+/* Hinweis unten */
+.menu-hint {
+  font-size: 0.8rem;
+  color: #888;
+  margin-top: 20px;
+}
+.btn-highlight {
+  color: #ffa04c;
+  font-weight: bold;
+}
+
+/* Animationen */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+@keyframes pulseBox {
+  from { transform: scale(1); }
+  to { transform: scale(1.1); }
+}
+/* 1. Den Container anpassen */
+.game-over-root {
+  position: relative;
+  width: 100vw; 
+  height: 100vh;
+  overflow: hidden; /* WICHTIG, damit keine Scrollbalken kommen */
+  
+  /* Hintergrundfarbe entfernen, da die .stars Klasse das jetzt macht */
+  /* background-color: ... (löschen) */
+  
+  font-family: 'Press Start 2P', monospace, sans-serif;
+  color: #ff9900;
+}
+
+/* 2. Deinen Sternen-Code einfügen */
+.stars {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 200%;  /* Wichtig für die Bewegung */
+  height: 200%;
+  pointer-events: none;
+  z-index: 0;   /* Liegt ganz unten */
+  
+  background-color: #080a0c; /* Dunkler Hintergrund */
+  /* Orange Sterne (#ff7b00) */
+  background-image: radial-gradient(#ff7b00 2px, transparent 2px);
+  background-size: 40px 40px;
+  
+  image-rendering: pixelated;
+  animation: starDrift 60s linear infinite; /* 60s ist schön langsam */
+}
+
+/* 3. Die Animation */
+@keyframes starDrift {
+  from { transform: translate(0, 0); }
+  to   { transform: translate(-25%, -25%); }
+}
+
+/* 4. WICHTIG: Inhalt muss ÜBER den Sternen liegen */
+.main-layout {
+  position: relative;
+  z-index: 10; /* Höher als z-index: 0 von den Sternen */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 100%;
+  padding: 0 40px;
+}
+
+/* Scanlines müssen ganz oben liegen (falls vorhanden) */
+.scanlines {
+  z-index: 20;
+  /* ... restliche scanline styles ... */
+}

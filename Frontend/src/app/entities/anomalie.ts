@@ -75,18 +75,7 @@ export class Anomalie {
       a.y += a.speed;
       a.x += Math.sin((a.speed + Date.now() / 1000) * 2) * 0.5;
 
-      // Hits machine: use GameConfig thresholds so visual machine size matches collision
-      const machineCenterX = this.W / 2;
-      const machineCollisionHalfWidth = (GameConfig.machineCollisionHalfWidth ?? 384);
-      const machineCollisionTopY = this.H - (GameConfig.machineCollisionYOffset ?? 65);
-
-      if (a.y + a.radius >= machineCollisionTopY && Math.abs(a.x - machineCenterX) < machineCollisionHalfWidth) {
-        // damage is percentage of anomalie's HP, fallback to small fixed damage
-        const dmg = Math.max(1, Math.round((GameConfig.machineDamageAnomalieCollision / 100) * a.hp));
-        player.takeDamage(dmg);
-        anomalien.splice(i, 1);
-        continue;
-      }
+      // Machine collision handled centrally in game logic; do not duplicate here.
 
       // Offscreen
       if (a.y > this.H + 50) {

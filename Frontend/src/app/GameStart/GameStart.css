@@ -1,4 +1,6 @@
-/* === ARCADE FONT === */
+/* =========================================
+   1. SCHRIFTARTEN & BASIS
+   ========================================= */
 @font-face {
   font-family: "Arcade";
   src: url("/assets/fonts/ARCADE.TTF") format("truetype");
@@ -6,20 +8,19 @@
   font-style: normal;
 }
 
-
-/* === Vollbild Container === */
+/* =========================================
+   2. SCREEN CONTAINER (HINTERGRUND)
+   ========================================= */
 .screen-container {
   width: 100vw;
   height: 100vh;
   background: #080a0c;
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
+  justify-content: center; /* Zentriert das Layout horizontal */
+  align-items: center;     /* Zentriert das Layout vertikal */
   position: relative;
   overflow: hidden;
   z-index: 1;
-
   animation: crtFlicker 6s infinite linear;
 }
 
@@ -32,12 +33,10 @@
   height: 200%;
   pointer-events: none;
   z-index: 0;
-
   background-color: #080a0c;
   background-image: radial-gradient(#ff7b00 2px, transparent 2px);
   background-size: 40px 40px;
   image-rendering: pixelated;
-
   animation: starDrift 28s linear infinite;
 }
 
@@ -46,29 +45,64 @@
   to   { transform: translate(-25%, -25%); }
 }
 
-/* === Titel Wrapper === */
+/* =========================================
+   3. NEUES LAYOUT (LINKS - MITTE - RECHTS)
+   ========================================= */
+.main-layout {
+  display: flex;
+  justify-content: space-between; /* Verteilt Spalten nach außen */
+  align-items: center;
+  width: 100%;
+  max-width: 1800px; /* Begrenzung auf großen Bildschirmen */
+  height: 100%;
+  padding: 0 60px;   /* Abstand zum Bildschirmrand */
+  box-sizing: border-box;
+  z-index: 10;
+}
+
+/* Seiten-Container (Links & Rechts) */
+.side-panel {
+  width: 350px;      /* Feste Breite für Highscores */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* Mittlere Spalte (Titel & Buttons) */
+.center-panel {
+  flex-grow: 1;      /* Nimmt den restlichen Platz */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-top: -50px; /* Leicht nach oben versetzt für optische Balance */
+}
+
+/* =========================================
+   4. TITEL & DEKO
+   ========================================= */
 .title-wrapper {
   text-align: center;
-  margin-bottom: 40px;
+  margin-bottom: 10px;
   z-index: 3;
 }
 
-/* === Arcade Titel 3D Glow === */
 .title {
   font-family: "Arcade", sans-serif !important;
-  font-size: 70px;
-  line-height: 1.1;
-  letter-spacing: 6px;
+  font-size: 110px;      
+  line-height: 1.0;       
+  letter-spacing: 8px;    
   color: #ff9d39;
-
+  
+  /* Text-Shadows an die neue Größe angepasst */
   text-shadow:
-    3px 3px 0 #c5681f,
-    6px 6px 0 #8a4313,
-    9px 9px 0 #512708,
-    12px 12px 0 #000000,
-    0 0 18px #ff7b00,
-    0 0 35px #ff7b00,
-    0 0 60px #ffb066;
+    4px 4px 0 #c5681f,
+    8px 8px 0 #8a4313,
+    12px 12px 0 #512708,
+    16px 16px 0 #000000,
+    0 0 20px #ff7b00,
+    0 0 40px #ff7b00,
+    0 0 70px #ffb066;
 
   animation: titlePulse 3s ease-in-out infinite,
              glowPulse 4s ease-in-out infinite;
@@ -80,81 +114,54 @@
 }
 
 @keyframes glowPulse {
-  0% {
-    text-shadow:
-      3px 3px 0 #c5681f,
-      6px 6px 0 #8a4313,
-      9px 9px 0 #512708,
-      12px 12px 0 #000,
-      0 0 18px #ff7b00,
-      0 0 35px #ff9d39,
-      0 0 65px #ffb066;
-  }
-  50% {
-    text-shadow:
-      3px 3px 0 #d67524,
-      6px 6px 0 #a14917,
-      9px 9px 0 #632d0a,
-      12px 12px 0 #000,
-      0 0 30px #ffb066,
-      0 0 60px #ffd3a0,
-      0 0 90px #ffb066;
-  }
-  100% { 
-    text-shadow:
-      3px 3px 0 #c5681f,
-      6px 6px 0 #8a4313,
-      9px 9px 0 #512708,
-      12px 12px 0 #000,
-      0 0 18px #ff7b00,
-      0 0 35px #ff9d39,
-      0 0 60px #ffb066;
-  }
+  0% { text-shadow: 3px 3px 0 #c5681f, 6px 6px 0 #8a4313, 9px 9px 0 #512708, 12px 12px 0 #000, 0 0 18px #ff7b00, 0 0 35px #ff9d39, 0 0 65px #ffb066; }
+  50% { text-shadow: 3px 3px 0 #d67524, 6px 6px 0 #a14917, 9px 9px 0 #632d0a, 12px 12px 0 #000, 0 0 30px #ffb066, 0 0 60px #ffd3a0, 0 0 90px #ffb066; }
+  100% { text-shadow: 3px 3px 0 #c5681f, 6px 6px 0 #8a4313, 9px 9px 0 #512708, 12px 12px 0 #000, 0 0 18px #ff7b00, 0 0 35px #ff9d39, 0 0 60px #ffb066; }
 }
 
-/* === Pixel Dekolinien === */
-.pixel-line {
-  width: 520px;
-  height: 12px;
-  background-image: repeating-linear-gradient(
-    to right,
-    #ff7b00,
-    #ff7b00 12px,
-    transparent 12px,
-    transparent 20px
-  );
-  opacity: 0.9;
-  margin: 20px auto;
-}
-
-/* === BUTTONS === */
+/* =========================================
+   5. BUTTONS
+   ========================================= */
 .menu-buttons {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 40px;
+  gap: 15px;
   z-index: 3;
 }
 
-/* === Arcade Buttons === */
 .pixel-btn {
   font-family: "Arcade", sans-serif;
-  font-size: 32px;
   color: #ff9d39;
   background: transparent;
   border: none;
   cursor: pointer;
   letter-spacing: 3px;
-
   text-shadow:
     2px 2px 0 #a65316,
     4px 4px 0 #70360f,
     6px 6px 0 #3d1c07,
     8px 8px 0 black,
     0 0 12px #ff7b00;
-
   animation: btnGlow 4s ease-in-out infinite;
   transition: transform 0.2s ease, color 0.2s ease;
+}
+
+/* Spezieller Style für den Start-Button (Größer) */
+.start-btn {
+  font-size: 50px;
+  margin-bottom: 10px;
+}
+
+/* Spezieller Style für Anleitung (Kleiner) */
+.menu-buttons .pixel-btn:nth-child(2) {
+  font-size: 50px;
+}
+
+.pixel-btn:hover {
+  color: #ffd3a0;
+  transform: scale(1.15);
+  text-shadow: 2px 2px 0 #ff9d39, 4px 4px 0 #cc7326, 6px 6px 0 #8a4a15, 8px 8px 0 black, 0 0 60px #ffb066;
 }
 
 @keyframes btnGlow {
@@ -163,30 +170,74 @@
   100% { text-shadow: 2px 2px 0 #b55b19, 4px 4px 0 #7d3f12, 6px 6px 0 #432209, 8px 8px 0 black, 0 0 12px #ff7b00; }
 }
 
-.pixel-btn:hover {
+/* =========================================
+   6. HIGHSCORE BOXEN (SIDEBAR STYLE)
+   ========================================= */
+.hs-box {
+  padding: 20px 24px;
+  border: 2px solid rgba(255, 123, 0, 0.35);
+  background: rgba(8, 10, 12, 0.65); /* Etwas dunklerer Hintergrund */
+  backdrop-filter: blur(4px);
+  border-radius: 8px;
+  box-shadow:
+    0 0 25px rgba(255, 123, 0, 0.15),
+    inset 0 0 14px rgba(255, 123, 0, 0.08);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.hs-title {
+  font-family: "Arcade", sans-serif;
+  font-size: 24px;
+  letter-spacing: 3px;
+  text-align: center;
+  margin: 0 0 20px 0;
+  color: #ff9d39;
+  text-shadow: 2px 2px 0 #a65316, 4px 4px 0 #70360f, 0 0 12px #ff7b00;
+  border-bottom: 2px dashed rgba(255, 123, 0, 0.3);
+  padding-bottom: 10px;
+}
+
+.hs-box ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.hs-box li {
+  display: grid;
+  grid-template-columns: 35px 1fr auto; /* Rang | Name | Score */
+  gap: 10px;
+  align-items: baseline;
+  font-family: "Arcade", sans-serif;
+  font-size: 16px;
+  letter-spacing: 2px;
+  color: #ff9d39;
+  padding: 8px 4px;
+  border-bottom: 1px solid rgba(255, 123, 0, 0.18);
+  text-shadow: 1px 1px 0 #a65316, 0 0 10px rgba(255, 123, 0, 0.25);
+}
+
+.hs-box li:last-child {
+  border-bottom: none;
+}
+
+.hs-rank { opacity: 0.9; }
+.hs-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hs-score {
+  text-align: right;
   color: #ffd3a0;
-  transform: scale(1.15);
-
-  text-shadow:
-    2px 2px 0 #ff9d39,
-    4px 4px 0 #cc7326,
-    6px 6px 0 #8a4a15,
-    8px 8px 0 black,
-    0 0 60px #ffb066;
+  text-shadow: 1px 1px 0 #a65316, 0 0 16px rgba(255, 176, 102, 0.35);
 }
 
-.bottom-row {
-  display: flex;
-  gap: 55px;
-}
-
-/* === CRT Flicker === */
+/* =========================================
+   7. EFFEKTE (CRT SCANLINES)
+   ========================================= */
 @keyframes crtFlicker {
   0%, 100% { opacity: 1; }
   50%      { opacity: 0.97; }
 }
 
-/* === CRT Scanlines Overlay === */
 .screen-container::after {
   content: "";
   position: absolute;
@@ -194,7 +245,6 @@
   width: 100%;
   height: 100%;
   pointer-events: none;
-
   background: repeating-linear-gradient(
     to bottom,
     rgba(0,0,0,0.18) 0px,
@@ -202,106 +252,71 @@
     transparent 2px,
     transparent 4px
   );
-
   z-index: 50;
   mix-blend-mode: overlay;
 }
 
-/* === STARTSCREEN HIGHSCORES im selben Arcade-Style === */
+/* =========================================
+   8. RESPONSIVE (FALLBACK)
+   ========================================= */
+/* Falls der Screen zu klein wird (z.B. kleines Laptop), skalieren wir alles etwas runter */
+@media (max-width: 1300px) {
+  .main-layout { padding: 0 20px; }
+  .side-panel { width: 280px; }
+  .title { font-size: 60px; }
+  .pixel-line { width: 400px; }
+  .start-btn { font-size: 40px; }
+}
 
-.start-highscores{
-  margin-top: 45px;
-  z-index: 3;
-  width: min(900px, 92vw);
+/* Dunkler Hintergrund für das Overlay */
+.overlay-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.9); /* Fast schwarz, leicht durchsichtig */
+  z-index: 1000; /* Muss ganz oben liegen */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Die Box der Anleitung */
+.anleitung-box {
+  background: #111;
+  border: 4px solid #fff;
+  padding: 30px;
+  width: 450px;
+  text-align: center;
+  box-shadow: 0 0 25px rgba(248, 163, 6, 0.3); /* Grünes Leuchten */
+}
+
+.anleitung-content {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 20px;
+  margin: 30px 0;
+  text-align: left; /* Text linksbündig für bessere Lesbarkeit */
 }
 
-.hs-line{
-  width: 100%;
-  height: 10px;
-  opacity: 0.75;
+.instruction-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  color: #fff;
+  font-family: 'Courier New', monospace; /* Retro Schrift */
 }
 
-.hs-grid{
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 50px;
-  align-items: start;
-}
-
-/* Box wie "Arcade Panel" */
-.hs-box{
-  padding: 16px 18px;
-  border: 2px solid rgba(255, 123, 0, 0.35);
-  background: rgba(8, 10, 12, 0.55);
-  backdrop-filter: blur(2px);
-  border-radius: 6px;
-  box-shadow:
-    0 0 18px rgba(255, 123, 0, 0.12),
-    inset 0 0 14px rgba(255, 123, 0, 0.08);
-}
-
-.hs-title{
-  font-family: "Arcade", sans-serif;
-  font-size: 18px;
-  letter-spacing: 3px;
+.instruction-row .icon {
+  font-size: 2.5rem;
+  width: 50px;
   text-align: center;
-  margin: 0 0 14px 0;
-  color: #ff9d39;
-
-  text-shadow:
-    2px 2px 0 #a65316,
-    4px 4px 0 #70360f,
-    0 0 12px #ff7b00;
 }
 
-.hs-box ul{
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-/* Jede Zeile wie Pixel-Text */
-.hs-box li{
-  display: grid;
-  grid-template-columns: 32px 1fr auto auto;
-  gap: 10px;
-  align-items: baseline;
-
-  font-family: "Arcade", sans-serif;
-  font-size: 14px;
-  letter-spacing: 2px;
-  color: #ff9d39;
-
-  padding: 6px 2px;
-  border-bottom: 1px solid rgba(255, 123, 0, 0.18);
-
-  text-shadow:
-    1px 1px 0 #a65316,
-    0 0 10px rgba(255, 123, 0, 0.25);
-}
-
-.hs-box li:last-child{
-  border-bottom: none;
-}
-
-.hs-rank{ opacity: 0.95; }
-.hs-name{ overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.hs-score{
-  min-width: 70px;
-  text-align: right;
-  color: #ffd3a0;
-  text-shadow:
-    1px 1px 0 #a65316,
-    0 0 16px rgba(255, 176, 102, 0.35);
-}
-
-.hs-date{
-  opacity: 0.65;
-  margin-left: 4px;
-  font-size: 12px;
+.instruction-row strong {
+  color: #a65316; /* Retro Grün für wichtige Wörter */
+  font-size: 1.1rem;
 }
 
 /* Mobile: untereinander */
@@ -349,4 +364,9 @@
   font-size: 16px;
   padding: 6px 12px;
   opacity: 0.85;
+}
+.close-btn {
+  background-color: #ff0000; /* Roter Button zum Schließen */
+  margin-top: 10px;
+  width: 100%;
 }
