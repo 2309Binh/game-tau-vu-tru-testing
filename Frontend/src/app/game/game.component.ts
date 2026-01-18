@@ -158,10 +158,8 @@ export class GameComponent implements AfterViewInit, OnDestroy {
         }
       }
 
-      // Start / Select mapping: try common indices 8/9
-      const startPressed = !!(btns[9] || btns[8]);
-
       // Build partial input map (same shape as keyboard handler)
+      // Keep joystick movement and shoot buttons; do NOT map Start/Select (buttons 8/9).
       const inputMap: any = {};
       inputMap.left = left;
       inputMap.right = right;
@@ -171,7 +169,6 @@ export class GameComponent implements AfterViewInit, OnDestroy {
         inputMap.shootOnce = true;
         this.playShotSound();
       }
-      if (startPressed) inputMap.start = true;
 
       if (this.gameInstance) this.gameInstance.setInput(inputMap);
 

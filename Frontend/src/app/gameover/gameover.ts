@@ -1,4 +1,4 @@
-import { Component, OnInit, HostListener } from '@angular/core';
+import { Component, OnInit, HostListener, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { HighscoreService, HighscoreDto } from '../core/services/highscore.service'; 
@@ -26,6 +26,11 @@ export class GameOverComponent implements OnInit {
   topAlltime: HighscoreDto[] = [];
   topToday: HighscoreDto[] = [];
 
+  // Gamepad support
+  private _gamepadLoopHandle: number | null = null;
+  private _gamepadIndex = 0;
+  private _prevButtons: boolean[] = [];
+
   constructor(
     private router: Router,
     private highscoreService: HighscoreService
@@ -39,7 +44,10 @@ export class GameOverComponent implements OnInit {
       this.score = history.state['score'] || 0;
     }
     this.loadHighscores();
+    this.attachGamepadControls();
   }
+
+  ngOnDestroy(): void { this.detachGamepadControls(); }
 
   // --- STEUERUNG ---
   @HostListener('window:keydown', ['$event'])
@@ -81,6 +89,86 @@ export class GameOverComponent implements OnInit {
     // (Egal ob gespeichert oder nicht)
     if (code === 'Digit9' || code === 'Enter' || code === 'ControlLeft') {
        this.onMenu();
+    }
+  }
+
+  // --- GAMEPAD SUPPORT ---
+  private attachGamepadControls() {
+    if (typeof navigator === 'undefined' || !('getGamepads' in navigator)) return;
+    if (this._gamepadLoopHandle) return;
+    const pads = navigator.getGamepads ? navigator.getGamepads() : null;
+    if (pads && pads.length > this._gamepadIndex && pads[this._gamepadIndex]) {
+      const gp = pads[this._gamepadIndex];
+      if (gp && gp.buttons) {
+        this._prevButtons = gp.buttons.map(b => !!b.pressed);
+      }
+    }
+    const loop = () => {
+      this.gamepadPollLoop();
+      this._gamepadLoopHandle = window.requestAnimationFrame(loop);
+    };
+    this._gamepadLoopHandle = window.requestAnimationFrame(loop);
+  }
+
+  private detachGamepadControls() {
+    if (this._gamepadLoopHandle) {
+      try { window.cancelAnimationFrame(this._gamepadLoopHandle); } catch(e) {}
+      this._gamepadLoopHandle = null;
+    }
+    this._prevButtons = [];
+  }
+
+  private gamepadPollLoop() {
+    try {
+      const pads = navigator.getGamepads ? navigator.getGamepads() : null;
+      if (!pads) return;
+      const gp = pads[this._gamepadIndex];
+      if (!gp) return;
+
+      const deadzone = 0.3;
+      const ax0 = (gp.axes && gp.axes.length > 0) ? gp.axes[0] : 0;
+      const ax1 = (gp.axes && gp.axes.length > 1) ? gp.axes[1] : 0;
+      const left = ax0 < -deadzone;
+      const right = ax0 > deadzone;
+      const up = ax1 < -deadzone;
+      const down = ax1 > deadzone;
+
+      const btns = gp.buttons.map(b => !!b.pressed);
+
+      // Edge triggers
+      const startOnce = !!(btns[9] && !this._prevButtons[9]);
+      const selectOnce = !!(btns[8] && !this._prevButtons[8]);
+
+      // Map axes -> actions (only when not saving)
+      if (!this.isSaving && !this.scoreSaved) {
+        if (up && !this._prevButtons['axis_up' as any]) { this.changeChar(-1); }
+        if (down && !this._prevButtons['axis_down' as any]) { this.changeChar(1); }
+        if (left && !this._prevButtons['axis_left' as any]) {
+          this.activeSlot = (this.activeSlot > 0) ? this.activeSlot - 1 : 2;
+        }
+        if (right && !this._prevButtons['axis_right' as any]) {
+          this.activeSlot = (this.activeSlot < 2) ? this.activeSlot + 1 : 0;
+        }
+      }
+
+      // SELECT -> save
+      if (selectOnce && !this.scoreSaved) {
+        this.saveScore();
+      }
+
+      // START -> back to menu
+      if (startOnce) {
+        this.onMenu();
+      }
+
+      const augmentedPrev = btns.slice();
+      augmentedPrev['axis_left' as any] = left;
+      augmentedPrev['axis_right' as any] = right;
+      augmentedPrev['axis_up' as any] = up;
+      augmentedPrev['axis_down' as any] = down;
+      this._prevButtons = augmentedPrev;
+    } catch (e) {
+      // ignore
     }
   }
 
