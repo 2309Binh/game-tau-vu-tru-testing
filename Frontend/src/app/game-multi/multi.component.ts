@@ -16,17 +16,18 @@ export class GameMultiComponent implements AfterViewInit, OnDestroy {
   
   @ViewChild('canvas', { static: true }) canvasRef!: ElementRef<HTMLCanvasElement>;
 
-  // Settings
   readonly POINTS_PER_LEVEL = 2500; 
 
-  // HUD Variablen
   scoreL = 0; levelL = 1; livesL = 100;
   scoreR = 0; levelR = 1; livesR = 100;
   machineHPL = 100; machineHPR = 100;
 
+  // NEU: Variable für das Overlay
+  winnerName: string | null = null;
+
   private gameInstance: any = null;
-  private bgm: HTMLAudioElement | null = null;
-  private shotSfx: HTMLAudioElement | null = null;
+    private bgm: HTMLAudioElement | null = null;
+   private shotSfx: HTMLAudioElement | null = null;
 
   // Gamepad support (two players)
   private _gamepadLoopHandle: number | null = null;
@@ -42,7 +43,7 @@ export class GameMultiComponent implements AfterViewInit, OnDestroy {
   ) {}
 
   ngAfterViewInit(): void {
-    this.start(); // Sofortiger Start ohne Umschweife
+    this.start();
   }
 
   @HostListener('window:resize')
@@ -55,14 +56,13 @@ export class GameMultiComponent implements AfterViewInit, OnDestroy {
   }
 
   start(){
-    // Cleanup
     if(this.gameInstance && this.gameInstance.destroy) this.gameInstance.destroy();
     
-    // Reset
     this.scoreL = 0; this.scoreR = 0;
     this.levelL = 1; this.levelR = 1;
     this.livesL = 100; this.livesR = 100;
     this.machineHPL = 100; this.machineHPR = 100;
+    this.winnerName = null;
 
     const canvas = this.canvasRef.nativeElement;
     canvas.width = window.innerWidth;
@@ -70,7 +70,6 @@ export class GameMultiComponent implements AfterViewInit, OnDestroy {
 
     this.playBGM();
     
-    // Start Logic
     this.gameInstance = initGame(canvas, {
       pointsPerLevel: this.POINTS_PER_LEVEL,
 
@@ -94,15 +93,25 @@ export class GameMultiComponent implements AfterViewInit, OnDestroy {
 
       // Play shot SFX when the logic reports a fired shot
       onShot: (player: 'left'|'right') => this.ngZone.run(() => { this.playShotSound(); }),
-
+      
       // GAME OVER -> Weiterleitung zur Komponente
       onGameOver: (finalScore: number) => {
         this.ngZone.run(() => {
           this.destroyGame();
-          // Navigiere zur existierenden Game Over Route
-          // Wir übergeben den Score via 'state', falls deine GameOverComponent das lesen kann.
-          // Falls nicht, speichert der Service den Highscore ggf. anders, aber so ist es sauber.
-          this.router.navigate(['/game-over'], { state: { score: finalScore } });
+          this.router.navigate(['/']);
+        });
+      },
+
+      // NEU: Winner Logik statt direktem Game Over Redirect
+      onWinner: (winner: string) => {
+        this.ngZone.run(() => {
+          this.destroyGame();
+          this.winnerName = winner;
+          
+          // Nach 4 Sekunden zurück zum Start (oder Game Over Screen)
+          setTimeout(() => {
+             this.router.navigate(['/']);
+          }, 4000);
         });
       }
     });

@@ -1,6 +1,7 @@
-<div class="game-over-root">
-  <div class="scanlines"></div>
+<div class="screen-container">
   <div class="stars"></div>
+  <div class="scanlines"></div>
+
   <div class="main-layout">
 
     <div class="side-panel left-panel">
@@ -25,31 +26,39 @@
         </h1>
       </div>
 
-      <div class="gameover-content">
-        <div class="final-score-box">
-          <span>SCORE:</span>
+      <div class="final-score-box">
+          <span class="score-label">FINAL SCORE</span>
           <span class="score-value">{{ score }}</span>
-        </div>
+      </div>
 
-        <div class="arcade-input-wrapper">
-          <div class="instruction-blink">ENTER INITIALS</div>
-
-          <div class="char-container">
+      <div class="arcade-input-wrapper" *ngIf="!scoreSaved">
+         <div class="input-instruction">ENTER INITIALS</div>
+         
+         <div class="char-container">
             <div *ngFor="let char of nameChars; index as i" 
                  class="char-box" 
                  [class.active]="i === activeSlot">
               {{ char }}
             </div>
-          </div>
-        </div>
+         </div>
+      </div>
 
-        <div class="menu-hint">
-          PRESS <span class="btn-highlight">START</span> TO SAVE
-        </div>
+      <div class="saved-message" *ngIf="scoreSaved">
+          SCORE SAVED!
+      </div>
 
-        <div class="menu-buttons">
-          <button class="pixel-btn" (click)="onMenu()">MENU</button>
-        </div>
+      <div class="blink-container">
+         
+         <h2 class="press-start-text">PRESS START TO RETURN</h2>
+         
+         <div class="small-hint" *ngIf="!scoreSaved">
+            PRESS [ SELECT ] TO SAVE
+         </div>
+         
+         <div class="small-hint" *ngIf="scoreSaved">
+            RETURN TO MENU
+         </div>
+
       </div>
 
     </div>

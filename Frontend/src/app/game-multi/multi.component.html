@@ -34,6 +34,7 @@
   <div class="monitor-wrapper left">
     <div class="damage-indicator-container">
       <div class="confidence-band" 
+           [style.height.%]="50 + (100 - machineHPL) * 0.4"
            [class.warning]="machineHPL <= 70 && machineHPL > 30"
            [class.critical]="machineHPL <= 30">
       </div>
@@ -58,6 +59,7 @@
   <div class="monitor-wrapper right">
     <div class="damage-indicator-container">
       <div class="confidence-band" 
+           [style.height.%]="50 + (100 - machineHPR) * 0.4"
            [class.warning]="machineHPR <= 70 && machineHPR > 30"
            [class.critical]="machineHPR <= 30">
       </div>
@@ -81,6 +83,12 @@
 
   <canvas #canvas></canvas>
   
-  <div id="game-screen" class="screen hidden"></div> 
+  <div class="winner-overlay" *ngIf="winnerName">
+      <div class="winner-box">
+          <div class="trophy">🏆</div>
+          <div class="winner-title">WINNER</div>
+          <div class="winner-name">{{ winnerName }}</div>
+      </div>
+  </div>
 
 </div>

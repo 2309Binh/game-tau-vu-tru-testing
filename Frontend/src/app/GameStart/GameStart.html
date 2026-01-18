@@ -1,5 +1,6 @@
 <div class="screen-container">
   <div class="stars"></div>
+  <div class="scanlines"></div>
 
   <div class="main-layout">
 
@@ -19,26 +20,36 @@
     <div class="center-panel">
       
       <div class="title-wrapper">
-        <div class="pixel-line"></div>
         <h1 class="title">
           <div>SMART</div>
           <div>LIMIT</div>
           <div>DEFENDER</div>
         </h1>
-        <div class="pixel-line"></div>
       </div>
 
-      <div class="menu-buttons">
-        <button class="pixel-btn start-btn" (click)="onStart()">START</button>
-        <button class="pixel-btn" (click)="showAnleitung = true">ANLEITUNG</button>
+      <div *ngIf="!showModeSelection && !showAnleitung" class="blink-container">
+         <h2 class="press-start-text">PRESS START</h2>
+         <div class="small-hint">PRESS [ SELECT ] FOR HELP</div>
       </div>
 
-      <div *ngIf="showModeSelection" class="mode-overlay">
-        <div class="mode-card">
-          <button class="pixel-btn mode-btn" (click)="selectSingle()">SINGLE PLAY</button>
-          <button class="pixel-btn mode-btn" (click)="selectMulti()">MULTI PLAY</button>
-          <button class="pixel-btn cancel-btn" (click)="showModeSelection = false">CANCEL</button>
-        </div>
+      <div *ngIf="showModeSelection" class="mode-selector">
+         <h3>SELECT MISSION</h3>
+         
+         <div class="mode-row">
+            <div class="mode-item" [class.active]="selectedMode === 'single'">
+               <span class="arrow" *ngIf="selectedMode === 'single'">▶</span>
+               SINGLE PLAYER
+            </div>
+
+            <div class="mode-item" [class.active]="selectedMode === 'multi'">
+               <span class="arrow" *ngIf="selectedMode === 'multi'">▶</span>
+               MULTI PLAYER
+            </div>
+         </div>
+
+         <div class="controls-hint">
+            [ JOYSTICK ] CHOOSE &nbsp;&nbsp; [ START ] CONFIRM
+         </div>
       </div>
 
     </div>
@@ -56,37 +67,26 @@
       </div>
     </div>
 
-  </div> <div class="overlay-backdrop" *ngIf="showAnleitung">
+  </div> 
+
+  <div class="overlay-backdrop" *ngIf="showAnleitung">
     <div class="hs-box anleitung-box">
       <h3 class="hs-title">MISSION BRIEFING</h3>
-      
       <div class="anleitung-content">
         <div class="instruction-row">
           <div class="icon">🕹️</div>
-          <div class="text">
-            <strong>JOYSTICK</strong><br>
-            Nutze ihn zum Steuern.
-          </div>
+          <div class="text"><strong>JOYSTICK</strong><br>Move Ship</div>
         </div>
-
         <div class="instruction-row">
           <div class="icon">🔴</div>
-          <div class="text">
-            <strong>KNÖPFE</strong><br>
-            Feuere damit deine Waffen ab.
-          </div>
+          <div class="text"><strong>BUTTONS</strong><br>Fire Weapons</div>
         </div>
-
         <div class="instruction-row">
           <div class="icon">👾</div>
-          <div class="text">
-            <strong>ANOMALIEN</strong><br>
-            Ziel: Schieß sie alle ab und verteidige die Maschine!
-          </div>
+          <div class="text"><strong>GOAL</strong><br>Defend the Machine!</div>
         </div>
       </div>
-
-      <button class="pixel-btn close-btn" (click)="showAnleitung = false">VERSTANDEN</button>
+      <div class="close-hint">PRESS [ SELECT ] TO CLOSE</div>
     </div>
   </div>
 

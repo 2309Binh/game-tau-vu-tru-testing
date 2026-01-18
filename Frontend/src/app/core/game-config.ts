@@ -5,7 +5,7 @@ export const GameConfig = {
     powerupChance: 0.3, //chance auf Powerup beim Zerstören einer Anomalie
     powerupTypeChance: 0.5, //chance, dass ein Powerup gut ist
     imagesToLoad : {
-      ship: 'assets/picture/robot.png',
+      ship: 'assets/picture/robot_ifm.png',
       anomalie: [
         'assets/picture/ano1.png',
         'assets/picture/ano2.png',

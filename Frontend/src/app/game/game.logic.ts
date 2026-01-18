@@ -287,8 +287,9 @@ export function initGame(canvas: HTMLCanvasElement, config: GameInitConfig) {
   }
 
   function render() {
-    ctx.fillStyle = '#050513'; 
-    ctx.fillRect(0, 0, W, H);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = 'rgba(5, 5, 19, 0.65)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // --- MASCHINE ZEICHNEN ---
     if (machineBlinkTimer > 0) machineBlinkTimer--;

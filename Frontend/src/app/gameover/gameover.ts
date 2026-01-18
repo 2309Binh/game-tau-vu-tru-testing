@@ -1,12 +1,12 @@
 import { Component, OnInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { HighscoreService, HighscoreDto } from '../core/services/highscore.service'; // Pfad prüfen
+import { HighscoreService, HighscoreDto } from '../core/services/highscore.service'; 
 
 @Component({
   selector: 'app-game-over',
   standalone: true,
-  imports: [CommonModule], // FormsModule brauchen wir nicht mehr!
+  imports: [CommonModule],
   templateUrl: './gameover.html',
   styleUrls: ['./gameover.css']
 })
@@ -14,11 +14,14 @@ export class GameOverComponent implements OnInit {
 
   score = 0;
   
-  // --- NEU: ARCADE INPUT VARIABLES ---
-  nameChars = ['A', 'A', 'A']; // Startet immer mit AAA
-  activeSlot = 0; // Welcher Buchstabe wird gerade geändert? (0, 1 oder 2)
+  // ARCADE INPUT
+  nameChars = ['A', 'A', 'A']; 
+  activeSlot = 0; 
   readonly ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ .0123456789"; 
-  // -----------------------------------
+
+  // FLAGS
+  isSaving = false; 
+  scoreSaved = false; // Neu: Damit wir wissen, ob schon gespeichert wurde
 
   topAlltime: HighscoreDto[] = [];
   topToday: HighscoreDto[] = [];
@@ -32,47 +35,61 @@ export class GameOverComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    if (!this.score) {
+      this.score = history.state['score'] || 0;
+    }
     this.loadHighscores();
   }
 
-  // Lauscht auf Joystick-Eingaben (Pfeiltasten) und Buttons
+  // --- STEUERUNG ---
   @HostListener('window:keydown', ['$event'])
   handleInput(event: KeyboardEvent) {
-    const key = event.code;
+    const code = event.code; // KeyCode (Digit9, ArrowUp, etc.)
 
-    // 1. Buchstaben ändern (HOCH / RUNTER)
-    if (key === 'ArrowUp' || key === 'KeyW') {
-      this.changeChar(-1); // Vorheriger Buchstabe
-    }
-    if (key === 'ArrowDown' || key === 'KeyS') {
-      this.changeChar(1); // Nächster Buchstabe
+    // Verhindert Scrollen
+    if(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(code)) {
+      event.preventDefault();
     }
 
-    // 2. Position wechseln (LINKS / RECHTS)
-    if (key === 'ArrowLeft' || key === 'KeyA') {
-      this.activeSlot = (this.activeSlot > 0) ? this.activeSlot - 1 : 2;
-    }
-    if (key === 'ArrowRight' || key === 'KeyD') {
-      this.activeSlot = (this.activeSlot < 2) ? this.activeSlot + 1 : 0;
+    // Wenn gerade gespeichert wird, nix tun
+    if (this.isSaving) return;
+
+    // --- NAVIGATION (Nur wenn noch nicht gespeichert wurde) ---
+    if (!this.scoreSaved) {
+        // 1. Buchstaben ändern
+        if (code === 'ArrowUp' || code === 'KeyW') { this.changeChar(-1); }
+        if (code === 'ArrowDown' || code === 'KeyS') { this.changeChar(1); }
+
+        // 2. Position wechseln
+        if (code === 'ArrowLeft' || code === 'KeyA') {
+          this.activeSlot = (this.activeSlot > 0) ? this.activeSlot - 1 : 2;
+        }
+        if (code === 'ArrowRight' || code === 'KeyD') {
+          this.activeSlot = (this.activeSlot < 2) ? this.activeSlot + 1 : 0;
+        }
     }
 
-    // 3. Speichern / Bestätigen (SPACE / ENTER)
-    if (key === 'Space' || key === 'Enter' || key === 'Digit9' || key === 'Numpad9') {
-      this.saveScore();
+    // --- BUTTONS ---
+    
+    // TASTE 8 (SELECT) -> SPEICHERN
+    // (Nur wenn noch nicht gespeichert wurde)
+    if ((code === 'Digit8' || code === 'Space') && !this.scoreSaved) {
+       this.saveScore();
+    }
+
+    // TASTE 9 (START) -> ZURÜCK ZUM STARTBILDSCHIRM
+    // (Egal ob gespeichert oder nicht)
+    if (code === 'Digit9' || code === 'Enter' || code === 'ControlLeft') {
+       this.onMenu();
     }
   }
 
   changeChar(direction: number) {
     const currentChar = this.nameChars[this.activeSlot];
     let index = this.ALPHABET.indexOf(currentChar);
-    
-    // Index verschieben
     index += direction;
-
-    // Loop-Logik (Nach Z kommt A, vor A kommt Z)
     if (index < 0) index = this.ALPHABET.length - 1;
     if (index >= this.ALPHABET.length) index = 0;
-
     this.nameChars[this.activeSlot] = this.ALPHABET[index];
   }
 
@@ -82,20 +99,29 @@ export class GameOverComponent implements OnInit {
   }
 
   saveScore() {
-    // Array zu String zusammenbauen ("A", "B", "C" -> "ABC")
+    if (this.isSaving || this.scoreSaved) return;
+    
     const finalName = this.nameChars.join('');
+    this.isSaving = true;
 
     this.highscoreService.save(finalName, this.score).subscribe({
       next: () => {
         console.log('Score gespeichert!');
-        this.loadHighscores();
-        // Optional: Nach dem Speichern direkt zum Menu oder Neustart
-        setTimeout(() => this.onMenu(), 1000); 
+        this.isSaving = false;
+        this.scoreSaved = true; // Input ausblenden, Erfolg anzeigen
+        this.loadHighscores();  // Liste aktualisieren
+        
+        // Optional: Nach 3 Sekunden automatisch zum Start
+        // setTimeout(() => this.onMenu(), 3000); 
       },
-      error: (err) => console.error(err)
+      error: (err) => {
+        console.error('Fehler:', err);
+        this.isSaving = false;
+      }
     });
   }
 
-  onRetry() { this.router.navigate(['/game']); }
-  onMenu() { this.router.navigate(['/']); }
+  onMenu() { 
+    this.router.navigate(['/']); 
+  }
 }
