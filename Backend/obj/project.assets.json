@@ -3247,11 +3247,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\Admin\\SLD2901\\backend\\backend.csproj",
+      "projectUniqueName": "C:\\Users\\Admin\\game-tau-vu-tru-testing\\backend\\backend.csproj",
       "projectName": "backend",
-      "projectPath": "C:\\Users\\Admin\\SLD2901\\backend\\backend.csproj",
+      "projectPath": "C:\\Users\\Admin\\game-tau-vu-tru-testing\\backend\\backend.csproj",
       "packagesPath": "C:\\Users\\Admin\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\Admin\\SLD2901\\backend\\obj\\",
+      "outputPath": "C:\\Users\\Admin\\game-tau-vu-tru-testing\\backend\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\Admin\\AppData\\Roaming\\NuGet\\NuGet.Config"
