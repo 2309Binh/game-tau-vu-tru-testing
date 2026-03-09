@@ -47,7 +47,9 @@ export class GameOverComponent implements OnInit {
     this.attachGamepadControls();
   }
 
-  ngOnDestroy(): void { this.detachGamepadControls(); }
+  ngOnDestroy(): void {
+    this.detachGamepadControls();
+  }
 
   // --- STEUERUNG ---
   @HostListener('window:keydown', ['$event'])

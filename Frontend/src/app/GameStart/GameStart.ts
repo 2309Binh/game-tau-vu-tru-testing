@@ -37,6 +37,8 @@ export class GameStartComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadTopScores();
+    // Enable gamepad polling on the start screen
+    this.attachGamepadControls();
     
     // Wenn man vom Spiel zurückkommt, Menü resetten
     this.sub = this.router.events
@@ -110,6 +112,11 @@ export class GameStartComponent implements OnInit, OnDestroy {
         if (code === 'Digit8' || code === 'KeyH') {
             this.showAnleitung = true;
         }
+    }
+
+    //=====Settinngs öffnen======
+    if (event.key === '#') {
+      this.router.navigate(['/settings']);
     }
   }
 

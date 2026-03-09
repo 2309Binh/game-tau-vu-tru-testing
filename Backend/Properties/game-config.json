@@ -1,0 +1,77 @@
+{
+    "canvasBg": "#050513",
+    "canvasWidth": 800,
+    "canvasHeight": 600,
+    "powerupChance": 0.3,
+    "powerupTypeChance": 0.5,
+    "imagesToLoad": {
+      "ship": "assets/picture/robot_ifm.png",
+      "anomalie": [
+        "assets/picture/ano1.png",
+        "assets/picture/ano2.png",
+        "assets/picture/ano3.png",
+        "assets/picture/ano4.png",
+        "assets/picture/ano5.png",
+        "assets/picture/ano6.png",
+        "assets/picture/ano7.png",
+        "assets/picture/maschine.png"
+      ],
+      "maschine": "assets/picture/maschine.png"
+    },
+    "bgm": "assets/music/background.mp3",
+    "shotSound": "assets/music/shot.mp3",
+    "bgmVolume": 0.25,
+    "shotSoundVolume": 0.9,
+    "machineDamageAnomalieCollision": 5,
+    "machineCollisionYOffset": 150,
+    "machineCollisionHalfWidth": 600,
+    "machineVisualYOffset": 65,
+    "machineHP": 100,
+    "powerupTypesGood": [
+      "IncreaseSpeed",
+      "RepairMachine",
+      "BonusPoints",
+      "IncreaseWeapon",
+      "Starman"
+    ],
+    "powerupTypesBad": [
+      "DecreaseSpeed",
+      "DamageMachine",
+      "MinusPoints",
+      "DecreaseWeapon",
+      "KeyChange"
+    ],
+    "starmanDuration": 10000,
+    "bulletSpeed": 8,
+    "startSpeedAnomalies": 2,
+    "startSpeedPlayerSingle": 10,
+    "startSpeedPlayerMulti": 7,
+    "powerUpTextDuration": 2000,
+    "popupTextDuration": 2000,
+    "playerDamageByAnomalieCollision": 10,
+    "playerDamageBlinkDuration": 60,
+    "machineBlinkDuration": 60,
+    "machineInvulnerableTimer": 30,
+    "pointsPerLevel": 1500,
+    "totalLives": 100,
+
+    "speedIncreasePerLevelAnomalies": 0.75,
+    "schwierigkeitHPAnomalie": 0.15,
+    "percentageBigAnomalie": 0.15,
+
+    "speedIncreasePerLevelAnomaliesMulti": 0.8,
+    "schwierigkeitHPAnomalieMulti": 0.18,
+    "percentageBigAnomalieMulti": 0.15,
+
+    "targetFps": 45,
+    "playerDamageByAnomalieCollisionMulti": 8,
+    "machineDamageAnomalieCollisionMulti": 4,
+    "keyChangeDuration": 10000,
+    "machineScaleXsingle": 13,
+    "machineScaleYsingle": 7,
+    "machineYsingle": -20,
+    "machineYmulti": 10,
+    "playerStartPointY": 200,
+    "machineScaleXmulti": 8,
+    "machineScaleYmulti": 5
+  }

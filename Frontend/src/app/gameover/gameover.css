@@ -176,8 +176,23 @@
 }
 .hs-title { color: #ff9d39; text-align: center; margin-top: 0; font-family: "Arcade", sans-serif; font-size: 24px; }
 ul { list-style: none; padding: 0; margin: 0; }
-li { display: flex; justify-content: space-between; color: #ff9d39; margin-bottom: 8px; font-family: "Arcade", sans-serif; font-size: 14px; }
-.hs-name { color: #fff; }
+li {
+  display: grid;
+  grid-template-columns: 42px 1fr 90px; /* rank | name | score */
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-family: "Arcade", sans-serif;
+  font-size: 14px;
+  color: #ff9d39;
+}
+
+.hs-rank { justify-self: start; }
+.hs-name { justify-self: center; color: #fff; }
+.hs-score {
+  justify-self: end;
+  font-variant-numeric: tabular-nums;
+}
 
 /* ANIMATIONEN */
 @keyframes blink { 50% { opacity: 0; } }

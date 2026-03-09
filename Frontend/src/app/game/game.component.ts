@@ -1,9 +1,10 @@
-import { AfterViewInit, Component, ElementRef, NgZone, OnDestroy, ViewChild, HostListener } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, NgZone, OnDestroy, ViewChild, HostListener,inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router'; // WICHTIG für die Weiterleitung
 import { initGame } from './game.logic';
 import { HudComponent } from '../hud/hud';
-import { GameConfig } from '../core/game-config';
+import { Player } from "../entities/player";
+import { GameConfigService, GameConfigType } from '../core/services/game-config.service';
 
 @Component({
   standalone: true,
@@ -14,15 +15,20 @@ import { GameConfig } from '../core/game-config';
 })
 export class GameComponent implements AfterViewInit, OnDestroy {
   
+  private configService = inject(GameConfigService);
+  
+  // Lokale Kopie der Config für's Spiel
+  private gameConfig!: GameConfigType;
+
   @ViewChild('canvas', { static: false }) canvasRef!: ElementRef<HTMLCanvasElement>;
   @ViewChild(HudComponent) hudComponent!: HudComponent; 
   
   // --- EINSTELLUNGEN ---
-  readonly POINTS_PER_LEVEL = 2500; 
+  POINTS_PER_LEVEL = 0;
   score = 0; 
-  lives = 100; 
+  lives = 0; 
   level = 1;
-  nextLevelThreshold = this.POINTS_PER_LEVEL;
+  nextLevelThreshold = 0;
 
   private gameInstance: any = null;
   
@@ -43,9 +49,32 @@ export class GameComponent implements AfterViewInit, OnDestroy {
     private ngZone: NgZone
   ) {}
 
-  ngAfterViewInit(): void {
+  async ngAfterViewInit(): Promise<void> {
+
+    await this.waitForConfig();
+    
+    // Config einmalig kopieren
+    this.gameConfig = this.configService.config()!;
+    this.initializeFromConfig();
+
     // Kurzer Timeout, damit der View sicher bereit ist
     setTimeout(() => { this.start(); }, 50);
+  }
+
+  private async waitForConfig() {
+    while (!this.configService.config()) {
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+  }
+
+  private initializeFromConfig() {
+    const cfg = this.gameConfig;
+    
+    // Werte aus Config setzen
+    this.POINTS_PER_LEVEL = cfg.pointsPerLevel;
+    this.lives = cfg.totalLives;
+    this.nextLevelThreshold = cfg.pointsPerLevel;
+  
   }
 
   @HostListener('window:resize')
@@ -54,8 +83,8 @@ export class GameComponent implements AfterViewInit, OnDestroy {
       const canvas = this.canvasRef.nativeElement;
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
-      GameConfig.canvasWidth = window.innerWidth;
-      GameConfig.canvasHeight = window.innerHeight;
+      this.gameConfig.canvasWidth = window.innerWidth;
+      this.gameConfig.canvasHeight = window.innerHeight;
     }
   }
 
@@ -64,8 +93,9 @@ export class GameComponent implements AfterViewInit, OnDestroy {
     
     // Reset Stats
     this.score = 0; 
-    this.lives = 100; 
+    this.lives = this.gameConfig.totalLives; 
     this.level = 1;
+    this.nextLevelThreshold = this.POINTS_PER_LEVEL;
 
     // Alte Instanz aufräumen
     if (this.gameInstance) {
@@ -83,14 +113,15 @@ export class GameComponent implements AfterViewInit, OnDestroy {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
         
-        GameConfig.canvasWidth = window.innerWidth;
-        GameConfig.canvasHeight = window.innerHeight;
+        this.gameConfig.canvasWidth = window.innerWidth;
+        this.gameConfig.canvasHeight = window.innerHeight;
 
         this.startBgm(); 
 
         // Spiel initialisieren
         this.gameInstance = initGame(canvas, {
           pointsPerLevel: this.POINTS_PER_LEVEL,
+          GameConfig: this.gameConfig, // Config weitergeben
           onScoreUpdate: (s) => this.ngZone.run(() => this.updateScore(s)),
           onLivesUpdate: (l) => this.ngZone.run(() => this.updateLives(l)),
           onLevelUpdate: (l) => this.ngZone.run(() => this.level = l),
@@ -159,7 +190,6 @@ export class GameComponent implements AfterViewInit, OnDestroy {
       }
 
       // Build partial input map (same shape as keyboard handler)
-      // Keep joystick movement and shoot buttons; do NOT map Start/Select (buttons 8/9).
       const inputMap: any = {};
       inputMap.left = left;
       inputMap.right = right;
@@ -205,10 +235,10 @@ export class GameComponent implements AfterViewInit, OnDestroy {
   startBgm() {
      try {
       if (!this.bgm) {
-        const bgmSrc = (GameConfig as any).bgm || '/assets/sound/background.mp3';
+        const bgmSrc = this.gameConfig.bgm || '/assets/sound/background.mp3';
         this.bgm = new Audio(bgmSrc);
         this.bgm.loop = true;
-        this.bgm.volume = 0.25;
+        this.bgm.volume = this.gameConfig.bgmVolume;
         this.bgm.preload = 'auto';
       }
 
@@ -235,11 +265,11 @@ export class GameComponent implements AfterViewInit, OnDestroy {
   private playShotSound() {
     try {
       if (!this.shotSfx) {
-        const shotSrc = (GameConfig as any).shotSound || '/assets/sound/shot.mp3';
+        const shotSrc = this.gameConfig.shotSound || '/assets/sound/shot.mp3';
         this.shotSfx = new Audio(shotSrc);
       }
       const s = this.shotSfx.cloneNode() as HTMLAudioElement;
-      s.volume = 0.5;
+      s.volume = this.gameConfig.shotSoundVolume;
       s.play().catch(() => {});
     } catch (err) {}
   }

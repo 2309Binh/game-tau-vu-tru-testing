@@ -12,9 +12,8 @@ export interface PlayerModel {
     score: number;
     level: number;
     levelWeapon: number;
-    width: number,
-    height: number,
-    color: 'blue',
+    starmanActive: boolean;
+    keyChange: boolean;
   }
   
   export interface BulletModel {
@@ -33,6 +32,7 @@ export interface PlayerModel {
     strength: number;
     scorePoints: number;
     imageIndex?: number;
+    maxHp: number;
   }
   
   export interface PowerupModel {

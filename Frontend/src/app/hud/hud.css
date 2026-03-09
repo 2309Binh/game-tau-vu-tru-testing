@@ -49,7 +49,7 @@
 .damage-indicator-container {
   position: absolute;
   left: 20px; 
-  bottom: 80px; 
+  top: 80px; 
   width: 350px; 
   height: 60px; 
   
@@ -138,9 +138,13 @@
 /*System Status*/
 
 .bottom-bar { 
+  position: absolute;      
+  top: 140px;             
+  left: 20px;             
   display: flex; 
   justify-content: flex-start;
-  padding: 20px; 
+  padding: 0;            
+  z-index: 15; 
 }
 
 .status-panel {

@@ -4,6 +4,7 @@ import { GameStartComponent } from './GameStart/GameStart';
 import { HighscoreComponent } from './highscore/highscore.component';
 import { GameMultiComponent } from './game-multi/multi.component';
 import { GameOverComponent } from './gameover/gameover';
+import { SettingsComponent } from './settings/settings';
 
 export const routes: Routes = [
   { path: '', component: GameStartComponent, title: 'Start' },
@@ -11,5 +12,6 @@ export const routes: Routes = [
   { path: 'game-multi', component: GameMultiComponent, title: 'Game Multi' },
   { path: 'highscore', component: HighscoreComponent, title: 'Highscore' },
   { path: 'highscore', component: HighscoreComponent, title: 'Highscore' },
-  { path: 'game-over', component: GameOverComponent, title: 'Game Over' }
+  { path: 'game-over', component: GameOverComponent, title: 'Game Over' },
+  { path: 'settings', component: SettingsComponent, title: 'Settings' },
 ];

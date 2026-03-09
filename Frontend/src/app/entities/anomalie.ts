@@ -1,16 +1,27 @@
 import { AnomalieModel, PlayerModel } from "../core/game-models";
-import { GameConfig } from "../core/game-config";
 import { Player } from "./player";
+import { Bullet } from "./bullet";
+import { GameConfigType } from "../core/services/game-config.service";
+
 
 export class Anomalie {
   private level: number = 1;
   private spawnWaveCount: number = 0;
   private lastWaveAt: number = 0;
 
-  private readonly W = GameConfig.canvasWidth;
-  private readonly H = GameConfig.canvasHeight;
+  private W: number;
+  private H: number;
+  private config: GameConfigType;
+
+  constructor(config: GameConfigType, canvasWidth: number, canvasHeight: number) {
+    this.config = config;
+    this.W = canvasWidth;
+    this.H = canvasHeight;
+  }
+
 
   //erzeugt einzelne Anomalie
+  /*
   createAnomalie(hp: number, speed: number, strength: number, scorePoints: number): AnomalieModel {
     return {
       x: Math.random() * this.W,
@@ -20,52 +31,64 @@ export class Anomalie {
       speed,
       strength,
       scorePoints,
-      imageIndex : undefined
+      imageIndex : undefined,
+      maxHp: hp
     };
-  }
+  }*/
 
 
-  spawnWave(player: PlayerModel, anomalien: AnomalieModel[]): AnomalieModel[] {
-    const count =
-      2 +
-      Math.floor(this.level * 0.8) +
-      Math.floor(Math.random() * 2);
-
+  spawnWave(player: PlayerModel, anomalien: AnomalieModel[], side: 'left' | 'right' | 'all', canvasWidth: number, isMultiplayer : boolean): AnomalieModel[] {
+    const count = 2 + Math.floor(this.level * 0.8) + Math.floor(Math.random() * 2);
+  
     for (let i = 0; i < count; i++) {
-      const r = 12 + Math.floor(Math.random() * 18) + this.level * 2; //radius größer je höher das level 
-      const x = Math.random() * (this.W - 80) + 40; //zufälige Position 
-
-      anomalien.push({ //neue Anomalie wird in internen Array gepusht
+      const r = 12 + Math.floor(Math.random() * 18) + this.level * 2;
+      let x: number = 0;
+  
+      if(side === 'left') {
+        x = Math.random() * (canvasWidth / 2 - 40) + 40;
+      } 
+      else if(side === 'right') {
+        x = canvasWidth / 2  + Math.random() * (canvasWidth / 2 - 40);
+      }
+      else if(side === 'all') {
+        x = Math.random() * (this.W - 80) + 40;
+      }
+  
+      const hp = Math.round( //hier für multi schwierigkeit anpassen
+        r * r * 
+        (isMultiplayer ? this.config.schwierigkeitHPAnomalieMulti : this.config.schwierigkeitHPAnomalie) * 
+        (1 + player.level * 0.18) *
+        (0.85 + Math.random() * 0.3) *
+        (Math.random() < (isMultiplayer ? this.config.percentageBigAnomalieMulti : this.config.percentageBigAnomalie) ? 2.5 : 1)
+      );
+  
+      anomalien.push({
         x,
         y: -50 - (i * 150) - (Math.random() * 50),
         radius: r,
-        speed: 1 + Math.random() * 1.6 + (this.level * 0.15),
-        hp: r * 2,
-        strength: Math.round(r * 10), //zur zeit nicht gebraucht 
-        scorePoints: 100 + Math.round(this.level * 10) + Math.round(r),
-        imageIndex: Math.floor(Math.random() * 7) //Zufälliges Bild für die Anomalie auswählen
+        speed: this.config.startSpeedAnomalies + Math.random() * 1.6 + (player.level * (isMultiplayer ? this.config.speedIncreasePerLevelAnomaliesMulti : this.config.speedIncreasePerLevelAnomalies)),
+        hp,
+        strength: 0,
+        scorePoints: hp,
+        imageIndex: Math.floor(Math.random() * 7),
+        maxHp: hp
       });
     }
-
+  
     this.spawnWaveCount++;
-    // Level progression is driven by score (game logic). Do not
-    // change player stats here to avoid unexpected upgrades.
     return anomalien;
   }
+  
 
   
-   updateSpawn(player: PlayerModel, anomalienLength: number, images: any, ctx: any, anomalien: AnomalieModel[]): AnomalieModel[] {
-    const needNewWave =
-     anomalienLength === 0 ||
-      (Date.now() - this.lastWaveAt > 1200 &&
-      anomalienLength < Math.max(1, 3 + Math.floor(this.level / 2)));
-
-    if (needNewWave) {
-      this.spawnWave(player, anomalien);
+  updateSpawn(player: PlayerModel, anomalienLength: number, images: any, ctx: any, anomalien: AnomalieModel[], side: 'left' | 'right' | 'all', canvasWidth: number, isMultiplayer : boolean): AnomalieModel[] {
+    if (anomalienLength === 0 || (Date.now() - this.lastWaveAt > 1200 && anomalienLength < Math.max(1, 3 + Math.floor(this.level / 2)))) {
+      this.spawnWave(player, anomalien, side, canvasWidth, isMultiplayer);
       this.lastWaveAt = Date.now();
     }
     return anomalien;
   }
+  
 
   //Bewewegung von Anomalien
   move(player: Player,anomalienLength: number, anomalien: AnomalieModel[]): void {
@@ -74,7 +97,6 @@ export class Anomalie {
 
       a.y += a.speed;
       a.x += Math.sin((a.speed + Date.now() / 1000) * 2) * 0.5;
-
       // Machine collision handled centrally in game logic; do not duplicate here.
 
       // Offscreen
@@ -92,15 +114,13 @@ export class Anomalie {
     // Jede zweite Level Weapon-Upgrade
     if (player.level % 2 === 0) {
       player.levelWeapon = Math.min(5, player.levelWeapon + 1);
-      console.log("Weapon level increased to " + player.levelWeapon);
     } else { // Jede ungerade Level Speed-Upgrade
       player.speed += 0.4;
-      console.log("Speed increased to " + player.speed);
     }
+    console.log("Player stats - Level: " + player.level + ", Weapon Level: " + player.levelWeapon + ", Speed: " + player.speed);
   }
 
   
-
   get currentLevel(): number {
     return this.level;
   }
@@ -136,7 +156,7 @@ export class Anomalie {
   
       // Draw HP bar
       const fullWidth = a.radius * 2.1;
-      const hpBarWidth = fullWidth * (a.hp / (a.radius * 2));
+      const hpBarWidth = fullWidth * (a.hp / a.maxHp);
 
       ctx.fillStyle = '#ff6f00';
       ctx.fillRect(

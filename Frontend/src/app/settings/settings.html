@@ -1,0 +1,50 @@
+<div class="settings-container">
+    <h2>Game Settings</h2>
+  
+    @for (category of configCategories(); track category.title) {
+      <div class="category-section">
+        <h3 class="category-title">{{ category.title }}</h3>
+  
+        <div class="settings-grid">
+          @for (field of category.fields; track field.key) {
+            <div class="config-row">
+              <label [for]="field.key">{{ field.label }}</label>
+  
+              @if (field.type === 'boolean') {
+                <input 
+                  type="checkbox" 
+                  [id]="field.key"
+                  [checked]="config()?.[field.key]"
+                  (change)="updateConfigValue(field.key, $any($event.target).checked)"
+                />
+              } @else if (field.type === 'number') {
+                <input 
+                  type="number" 
+                  [id]="field.key"
+                  [value]="config()?.[field.key]"
+                  [step]="field.step || '1'"
+                  (input)="updateConfigValue(field.key, $any($event.target).value)"
+                />
+              } @else {
+                <input 
+                  type="text" 
+                  [id]="field.key"
+                  [value]="config()?.[field.key]"
+                  (input)="updateConfigValue(field.key, $any($event.target).value)"
+                />
+              }
+  
+              <div class="description">{{ field.description }}</div>
+            </div>
+          }
+        </div>
+      </div>
+    }
+  
+    <div class="buttons">
+
+      <button type="button" (click)="reloadConfig()" class="btn-secondary">Neu laden</button>
+      
+    </div>
+</div>
+

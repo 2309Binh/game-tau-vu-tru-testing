@@ -4,6 +4,8 @@ import { AnomalieModel, BulletModel, PowerupModel, PlayerModel, InputState } fro
 import { Powerup } from "../entities/powerup";
 import { Bullet } from "../entities/bullet";
 import { GameConfig } from "../core/game-config";
+import { GameConfigService, GameConfigType } from "../core/services/game-config.service";
+
 
 export interface GameInitConfig {
   onScoreUpdate?: (score: number) => void;
@@ -11,7 +13,9 @@ export interface GameInitConfig {
   onLevelUpdate?: (level: number) => void;
   onGameOver?: (score: number) => void;
   
+  
   pointsPerLevel: number;
+  GameConfig: GameConfigType;
 
   hudScore?: HTMLElement | null;
   hudLives?: HTMLElement | null;
@@ -35,13 +39,14 @@ export function initGame(canvas: HTMLCanvasElement, config: GameInitConfig) {
   let raf = 0;
   let running = true;
 
-  const player = new Player(); 
-  const anomalie = new Anomalie();
-  const bullet = new Bullet(player.state);
+  const player = new Player(config.GameConfig, false); // false, da Singleplayer
+  const anomalie = new Anomalie(config.GameConfig, W, H);
+  const bullet = new Bullet(config.GameConfig, player.state);
   
   let bullets: BulletModel[] = [];
   let anomalien: AnomalieModel[] = []; 
   let powerups: Powerup[] = [];
+  let activeTexts: { text: string; x: number; y: number; spawnTime: number; duration: number }[] = [];
 
   let fireCooldown = 0;
   
@@ -91,7 +96,7 @@ export function initGame(canvas: HTMLCanvasElement, config: GameInitConfig) {
   }
   
   async function preloadImages() {
-    const entries = Object.entries(GameConfig.imagesToLoad);
+    const entries = Object.entries(config.GameConfig.imagesToLoad);
     for (const [key, value] of entries) {
       try {
         if (Array.isArray(value)) {
@@ -123,28 +128,31 @@ export function initGame(canvas: HTMLCanvasElement, config: GameInitConfig) {
     if (machineInvulnerableTimer > 0) machineInvulnerableTimer -= 1;
     if (input.shootOnce) {
       if (fireCooldown <= 0) {
-        Bullet.fireBullet(bullets, player.state);
+        Bullet.fireBullet(bullets, player.state, config.GameConfig);
         fireCooldown = Math.max(6 - player.state.levelWeapon, 2);
       }
       input.shootOnce = false;
     }
 
+    // -------------------- BULLET UPDATE & MOVE --------------------
+
     for (let i = bullets.length - 1; i >= 0; i--) {
       const b = bullets[i];
       b.y -= b.speed;
       if (b.y < -10) bullets.splice(i, 1);
+      
     }
 
     /* -------------------- ANOMALIE UPDATE & MOVE -------------------- */
-    anomalie.updateSpawn(player.state, anomalien.length, images, ctx, anomalien); 
+    anomalie.updateSpawn(player.state, anomalien.length, images, ctx, anomalien, 'all', W, false); // false für Singleplayer
     anomalie.move(player, anomalien.length, anomalien); 
 
     /* -------------------- MASCHINEN & BODEN KOLLISION (Der wichtige Teil!) -------------------- */
     
     // Compute machine collision rect using GameConfig collision tuning.
     const machCenterX = W / 2;
-    const machineHalfWidth = GameConfig.machineCollisionHalfWidth ?? 384;
-    const machineTopY = H - (GameConfig.machineCollisionYOffset ?? 65);
+    const machineHalfWidth = config.GameConfig.machineCollisionHalfWidth ?? 384;
+    const machineTopY = H - (config.GameConfig.machineCollisionYOffset ?? 65);
     // Rectangle spans from collision top down to bottom of canvas
     const machineRect = {
       x: machCenterX - machineHalfWidth,
@@ -177,15 +185,23 @@ export function initGame(canvas: HTMLCanvasElement, config: GameInitConfig) {
           console.log("Treffer: Boden (Seite)!");
       }
 
-      // Wenn getroffen: apply damage unless machine is invulnerable
-      if (hitMachine) {
+      // Wenn getroffen und Starman deaktiviert: apply damage unless machine is invulnerable
+      if (hitMachine && !player.starmanActive) { 
         if (machineInvulnerableTimer <= 0) {
-          const dmg = Math.max(1, Math.round((GameConfig.machineDamageAnomalieCollision / 100) * a.hp));
+          const dmg = Math.max(1, Math.round((config.GameConfig.machineDamageAnomalieCollision / 100) * a.hp)); //damage based on anomaly HP
           player.takeDamage(dmg);
 
           // Start blink and invulnerability for ~1s (assuming ~60fps)
-          machineBlinkTimer = 30;
-          machineInvulnerableTimer = 30;
+          machineBlinkTimer = config.GameConfig.machineBlinkDuration;
+          machineInvulnerableTimer = config.GameConfig.machineInvulnerableTimer;
+
+          activeTexts.push({ //erzeugt Popup-Text wenn Maschine Schaden nimmt
+            text: `-${dmg} HP!`,
+            x: a.x,        
+            y: a.y,        
+            spawnTime: performance.now(),
+            duration: config.GameConfig.popupTextDuration 
+        });
 
           if (config.onLivesUpdate) config.onLivesUpdate(player.state.lives);
         } else {
@@ -215,9 +231,19 @@ export function initGame(canvas: HTMLCanvasElement, config: GameInitConfig) {
         h: a.radius * 2
       };
 
-      if (checkCollision(playerRect, enemyRect)) {
-        player.state.lives -= 10;
-        damageBlinkTimer = 60; // Spieler blinkt
+      if (checkCollision(playerRect, enemyRect) ) { 
+        if (!player.starmanActive){
+          player.takeDamage(config.GameConfig.playerDamageByAnomalieCollision);
+          damageBlinkTimer = config.GameConfig.playerDamageBlinkDuration; // Spieler blinkt
+
+          activeTexts.push({ //erzeugt Popup-Text wenn Player Schaden nimmt
+            text: `-${config.GameConfig.playerDamageByAnomalieCollision} HP!`,
+            x: a.x,        
+            y: a.y,        
+            spawnTime: performance.now(),
+            duration: config.GameConfig.popupTextDuration 
+        });
+        }
         anomalien.splice(i, 1);
         if (config.onLivesUpdate) config.onLivesUpdate(player.state.lives);
         continue; 
@@ -235,10 +261,25 @@ export function initGame(canvas: HTMLCanvasElement, config: GameInitConfig) {
           a.hp -= b.damage;
 
           if (a.hp <= 0) {
-            player.state.score += a.scorePoints;
+            let pointsGained = a.scorePoints;
+
+            // Doppel-Punkte, wenn Starman aktiv
+            if (player.starmanActive) {
+                pointsGained *= 2;
+            }
+
+            player.state.score += pointsGained;
             scoreChanged = true;
 
-            const pts = config.pointsPerLevel || 2500;
+            activeTexts.push({ //erzeugt Popup-Text wenn Anomalie zerstört wurde
+              text: `+${pointsGained} Points!`,
+              x: a.x,        
+              y: a.y,        
+              spawnTime: performance.now(),
+              duration: config.GameConfig.popupTextDuration 
+          });
+
+            const pts = config.pointsPerLevel || 1500;
             const calculatedLevel = Math.floor(player.state.score / pts) + 1;
             if (calculatedLevel > player.state.level) {
               const diff = calculatedLevel - player.state.level;
@@ -248,8 +289,8 @@ export function initGame(canvas: HTMLCanvasElement, config: GameInitConfig) {
               if (config.onLevelUpdate) config.onLevelUpdate(player.state.level);
             }
 
-            if (Math.random() < (GameConfig.powerupChance ?? 0.18)) {
-              powerups.push(new Powerup(a));
+            if (Math.random() < config.GameConfig.powerupChance) {
+              powerups.push(new Powerup(a,config.GameConfig));
             }
             anomalien.splice(i, 1);
             break;
@@ -267,7 +308,7 @@ export function initGame(canvas: HTMLCanvasElement, config: GameInitConfig) {
       const p = powerups[i];
       p.state.y += p.state.speed;
       if (dist(p.state.x, p.state.y, player.state.position.x, player.state.position.y) < 18) {
-        p.apply(player.state);
+        p.apply(player, activeTexts);
         powerups.splice(i, 1);
         if (config.onLivesUpdate) config.onLivesUpdate(player.state.lives);
         if (config.onScoreUpdate) config.onScoreUpdate(player.state.score);
@@ -286,6 +327,10 @@ export function initGame(canvas: HTMLCanvasElement, config: GameInitConfig) {
     }
   }
 
+
+
+
+
   function render() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = 'rgba(5, 5, 19, 0.65)';
@@ -294,7 +339,7 @@ export function initGame(canvas: HTMLCanvasElement, config: GameInitConfig) {
     // --- MASCHINE ZEICHNEN ---
     if (machineBlinkTimer > 0) machineBlinkTimer--;
 
-    drawMachine(W / 2, H - (GameConfig.machineVisualYOffset ?? 80)); 
+    drawMachine(W / 2, H - (config.GameConfig.machineVisualYOffset ?? 80)); 
     
     // --- PLAYER ZEICHNEN ---
     if (damageBlinkTimer > 0) {
@@ -309,7 +354,7 @@ export function initGame(canvas: HTMLCanvasElement, config: GameInitConfig) {
     ctx.globalAlpha = 1.0; 
     // --------------------------
 
-    bullet.drawBullet(ctx, bullets); 
+    bullet.drawBullet(ctx, bullets,player.state); 
     anomalie.drawAnomalie(images, ctx, anomalien); 
 
     for (const p of powerups) {
@@ -317,20 +362,48 @@ export function initGame(canvas: HTMLCanvasElement, config: GameInitConfig) {
       ctx.beginPath();
       ctx.arc(p.state.x, p.state.y, 8, 0, Math.PI * 2);
       ctx.fill();
-    }
+    }  
+
+    // --- POPUP-TEXTE ---
+  const now = performance.now();
+  activeTexts = activeTexts.filter(t => now - t.spawnTime < t.duration);
+
+  activeTexts.forEach(t => {
+    const elapsed = now - t.spawnTime;
+    const floatY = t.y - elapsed * 0.03; // Float nach oben
+    const alpha = 1 - elapsed / t.duration; // Fade Out
+
+    ctx.save();
+    ctx.globalAlpha = alpha; 
+    ctx.fillStyle = "#ff7b00";
+    ctx.font = "18px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(t.text, t.x, floatY);
+    ctx.restore();
+  });
   }
+
+
 
   //Draw Machine
   function drawMachine(x: number, y: number) {
+
+    const drawH = 48;
+    const drawW = 96;
+    const scaleX = config.GameConfig.machineScaleXsingle;
+    const scaleY = config.GameConfig.machineScaleYsingle;
+    const posY = y + config.GameConfig.machineYsingle;
+
     ctx.save();
-    ctx.translate(x, y);
-    ctx.scale(13, 7);
+    ctx.translate(x, posY);
+    ctx.scale(scaleX, scaleY);
 
     // BLINK-LOGIK: Aggressiver (Ganz unsichtbar machen)
     // Damit man es auch auf dem grauen Metall sieht!
     if (machineBlinkTimer > 0) {
         if (Math.floor(machineBlinkTimer / 4) % 2 === 0) {
-            // Komplett ausblenden (schwarzer Hintergrund blitzt durch)
+            // Komplett ausblenden (schwarzer Hintergrund kommt durch)
             ctx.globalAlpha = 0; 
         } else {
             ctx.globalAlpha = 1.0;
@@ -338,40 +411,50 @@ export function initGame(canvas: HTMLCanvasElement, config: GameInitConfig) {
     }
 
     const img = images.maschine;
+
     if (img) {
-      const drawW = 96;
-      const drawH = 48;
       ctx.imageSmoothingEnabled = false;
       ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
       ctx.restore();
       return;
     }
-
-    // Vector fallback
-    ctx.fillStyle = '#222';
-    ctx.fillRect(-48, -12, 96, 24);
-    ctx.fillStyle = '#444';
-    ctx.fillRect(-36, -10, 72, 20);
-    ctx.fillStyle = '#f9d423';
-    ctx.fillRect(-6, -6, 12, 12);
+    else {
+      //Vector fallback
+      ctx.fillStyle = '#222';
+      ctx.fillRect(-48, -12, 96, 24);
+      ctx.fillStyle = '#444';
+      ctx.fillRect(-36, -10, 72, 20);
+      ctx.fillStyle = '#f9d423';
+      ctx.fillRect(-6, -6, 12, 12);
+    }
 
     ctx.restore();
   }
 
-  // game loop
+  // game loop and fps control
   (async () => {
     console.log("Preloading images...");
     await preloadImages();
-
-    let frame = () => {
+  
+    const TARGET_FPS = config.GameConfig.targetFps;
+    const FRAME_DURATION = 1000 / TARGET_FPS; 
+    let lastTime = performance.now();
+  
+    const frame = (now: number) => {
       if (!running) return;
-      step();
-      render();
+  
+      if (now - lastTime >= FRAME_DURATION) {
+        step();
+        render();
+        lastTime = now;
+      }
+  
       raf = requestAnimationFrame(frame);
     };
-
+  
     raf = requestAnimationFrame(frame);
   })();
+  
 
   /// API
   return {
